@@ -11,9 +11,10 @@ export const Route = createFileRoute("/_authenticated")({
     const userId = data.user.id;
 
     // 2. Verifica assinatura ativa (plano pago)
+    // Traz o plano junto para evitar round-trip extra
     const { data: sub, error: subError } = await supabase
       .from("subscriptions")
-      .select("id, status, plan_id, current_period_end")
+      .select("id, status, plan_id, current_period_end, plans(name, slug)")
       .eq("user_id", userId)
       .eq("status", "active")
       .maybeSingle();
@@ -25,7 +26,7 @@ export const Route = createFileRoute("/_authenticated")({
     // Se não tem assinatura ativa, redireciona para escolha de plano
     if (!sub) throw redirect({ to: "/auth?step=plans" });
 
-    // Verifica expiração (planos mensais)
+    // Verifica expiração (planos mensais — lifetime não tem data)
     if (sub.current_period_end) {
       const expiresAt = new Date(sub.current_period_end);
       const now = new Date();

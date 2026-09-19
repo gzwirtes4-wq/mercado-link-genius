@@ -32,6 +32,12 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+// Resolve plan slug → UUID using the plans table
+const PLAN_MAP: Record<string, string> = {
+  monthly: "classic",
+  lifetime: "lifetime",
+};
+
 const PLANS_STEPS = [
   {
     name: "1 Mês",
@@ -47,6 +53,7 @@ const PLANS_STEPS = [
       "Suporte por chamados",
     ],
     highlight: false,
+    slug: "monthly",
   },
   {
     name: "Lifetime",
@@ -63,6 +70,7 @@ const PLANS_STEPS = [
     ],
     highlight: true,
     badge: "Acesso vitalício",
+    slug: "lifetime",
   },
 ];
 
@@ -75,7 +83,6 @@ function AuthPage() {
   const [showPlans, setShowPlans] = React.useState(false);
   const [activating, setActivating] = React.useState<string | null>(null);
 
-  // Lê query param step=plans (usuário sem assinatura tenta acessar dashboard)
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("step") === "plans") {
@@ -150,36 +157,54 @@ function AuthPage() {
     navigate({ to: "/dashboard" });
   };
 
-  // Ativação simulada — na produção, substitua por webhook de pagamento real
-  const handleActivatePlan = async (planId: string) => {
+  // Ativação real: busca o UUID do plano pela slug, depois upsert
+  const handleActivatePlan = async (slug: string) => {
     if (!session?.user) {
       setMode("login");
       setShowPlans(false);
       toast.error("Faça login primeiro");
       return;
     }
-    setActivating(planId);
-    const isLifetime = planId === "lifetime";
+    setActivating(slug);
+
+    // 1. Descobre o UUID do plano pela slug
+    const { data: plan, error: planError } = await supabase
+      .from("plans")
+      .select("id")
+      .eq("slug", PLAN_MAP[slug] ?? slug)
+      .maybeSingle();
+
+    if (planError || !plan) {
+      toast.error("Plano não encontrado. Tente novamente.");
+      setActivating(null);
+      return;
+    }
+
+    // 2. Monta a assinatura
+    const isLifetime = slug === "lifetime";
     const periodEnd = isLifetime ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    const { error } = await supabase.from("subscriptions").upsert(
-      {
-        user_id: session.user.id,
-        plan_id: planId,
-        status: "active",
-        current_period_end: periodEnd,
-      },
-      { onConflict: "user_id" },
-    );
+
+    const { error: subError } = await supabase
+      .from("subscriptions")
+      .upsert(
+        {
+          user_id: session.user.id,
+          plan_id: plan.id,          // UUID real do plano
+          status: "active",
+          current_period_end: periodEnd,
+        },
+        { onConflict: "user_id" },
+      );
+
     setActivating(null);
-    if (error) {
-      toast.error("Erro ao ativar plano", { description: error.message });
+    if (subError) {
+      toast.error("Erro ao ativar plano", { description: subError.message });
       return;
     }
     toast.success("Plano ativado! Bem-vindo ao AfiliaHub.");
     navigate({ to: "/dashboard" });
   };
 
-  // Se mostra tela de planos, renderiza só ela
   if (showPlans) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] text-white">
@@ -206,7 +231,7 @@ function AuthPage() {
         </header>
 
         <main className="mx-auto max-w-4xl px-5 py-16">
-          <div className="text-center mb-12">
+          <div className="mb-12 text-center">
             <Badge className="mb-4 rounded-full border border-[#FFD000]/30 bg-[#FFD000]/10 px-4 py-1 text-xs font-medium text-[#FFD000]">
               Acesso restrito
             </Badge>
@@ -244,7 +269,7 @@ function AuthPage() {
                 <ul className="mt-8 space-y-3">
                   {p.features.map((f) => (
                     <li key={f} className="flex gap-3 text-sm text-white/70">
-                      <Check className="size-4 shrink-0 mt-0.5 text-[#FFD000]" />
+                      <Check className="mt-0.5 size-4 shrink-0 text-[#FFD000]" />
                       {f}
                     </li>
                   ))}
@@ -252,22 +277,22 @@ function AuthPage() {
                 <div className="mt-8">
                   {p.highlight ? (
                     <Button
-                      className="w-full bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-bold text-base py-6 rounded-xl shadow-[0_0_30px_rgba(255,208,0,0.3)]"
+                      className="flex w-full items-center justify-center gap-2 bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-bold text-base py-6 rounded-xl shadow-[0_0_30px_rgba(255,208,0,0.3)]"
                       onClick={() => handleActivatePlan("lifetime")}
-                      disabled={activating === "lifetime"}
+                      disabled={activating !== null}
                     >
-                      {activating === "lifetime" ? "Ativando..." : `COMPRAR LIFETIME`}
-                      <ArrowRight className="size-4 ml-2" />
+                      {activating === "lifetime" ? "Ativando..." : "COMPRAR LIFETIME"}
+                      <ArrowRight className="size-4" />
                     </Button>
                   ) : (
                     <Button
                       variant="outline"
-                      className="w-full border-white/20 text-white hover:bg-white/10 hover:text-white font-semibold py-6 rounded-xl"
+                      className="flex w-full items-center justify-center gap-2 border-white/20 text-white hover:bg-white/10 hover:text-white font-semibold py-6 rounded-xl"
                       onClick={() => handleActivatePlan("monthly")}
-                      disabled={activating === "monthly"}
+                      disabled={activating !== null}
                     >
                       {activating === "monthly" ? "Ativando..." : "ASSINAR AGORA"}
-                      <ArrowRight className="size-4 ml-2" />
+                      <ArrowRight className="size-4" />
                     </Button>
                   )}
                 </div>
@@ -301,15 +326,15 @@ function AuthPage() {
             só. Resultados dependem do seu trabalho e da sua audiência — aqui você tem as ferramentas.
           </p>
         </div>
-        <p className="text-xs text-white/40 flex items-start gap-2">
+        <p className="flex items-start gap-2 text-xs text-white/40">
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#FFD000]/60" />
           Nunca pedimos a senha da sua conta do Mercado Livre. A conexão é feita pelo fluxo oficial.
         </p>
       </div>
 
-      <div className="flex items-center justify-center px-5 py-12 bg-[#0A0A0A]">
+      <div className="flex items-center justify-center bg-[#0A0A0A] px-5 py-12">
         <div className="w-full max-w-sm">
-          <div className="lg:hidden mb-8">
+          <div className="mb-8 lg:hidden">
             <span className="font-display text-xl font-semibold text-white">
               <span className="text-[#FFD000]">Afilia</span>Hub
             </span>
