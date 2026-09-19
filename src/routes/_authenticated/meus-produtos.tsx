@@ -26,9 +26,9 @@ import { fetchIntegration, fetchMyLinks, fetchMyProducts, type Product } from "@
 export const Route = createFileRoute("/_authenticated/meus-produtos")({
   head: () => ({
     meta: [
-      { title: "Meus Produtos | AfiliaHub" },
+      { title: "Meus Produtos | Mercado Ecommerce" },
       { name: "description", content: "Produtos salvos, links de afiliado e cliques." },
-      { property: "og:title", content: "Meus Produtos | AfiliaHub" },
+      { property: "og:title", content: "Meus Produtos | Mercado Ecommerce" },
       { property: "og:description", content: "Produtos salvos, links de afiliado e cliques." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

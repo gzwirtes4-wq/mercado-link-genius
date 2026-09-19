@@ -42,7 +42,7 @@ export function Logo({ compact = false }: { compact?: boolean }) {
       {!compact && (
         <div className="leading-tight">
           <p className="font-display text-base font-semibold">AfiliaHub</p>
-          <p className="text-[11px] text-muted-foreground">Ferramentas para afiliados</p>
+          <p className="text-[11px] text-muted-foreground">Soluções para e-commerce</p>
         </div>
       )}
     </div>

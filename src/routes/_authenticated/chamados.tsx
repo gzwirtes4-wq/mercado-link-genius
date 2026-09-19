@@ -19,9 +19,9 @@ import { fetchTickets } from "@/lib/queries";
 export const Route = createFileRoute("/_authenticated/chamados")({
   head: () => ({
     meta: [
-      { title: "Chamados | AfiliaHub" },
+      { title: "Chamados | Mercado Ecommerce" },
       { name: "description", content: "Abra e acompanhe chamados de suporte." },
-      { property: "og:title", content: "Chamados | AfiliaHub" },
+      { property: "og:title", content: "Chamados | Mercado Ecommerce" },
       { property: "og:description", content: "Abra e acompanhe chamados de suporte." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

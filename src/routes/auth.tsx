@@ -15,15 +15,18 @@ export const Route = createFileRoute("/auth")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Entrar ou criar conta | AfiliaHub" },
+      { title: "Entrar ou criar conta | Mercado Ecommerce" },
       {
         name: "description",
-        content: "Acesse o painel AfiliaHub para organizar produtos, links e divulgações do Mercado Livre.",
+        content: "Acesse o painel Mercado Ecommerce para organizar produtos, links e divulgações.",
       },
-      { property: "og:title", content: "Entrar ou criar conta | AfiliaHub" },
+      {
+        property: "og:title",
+        content: "Entrar ou criar conta | Mercado Ecommerce",
+      },
       {
         property: "og:description",
-        content: "Acesse o painel AfiliaHub para organizar produtos, links e divulgações do Mercado Livre.",
+        content: "Acesse o painel Mercado Ecommerce para organizar produtos, links e divulgações.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -83,9 +86,6 @@ function AuthPage() {
   const [showPlans, setShowPlans] = React.useState(false);
   const [activating, setActivating] = React.useState<string | null>(null);
 
-  // Exibe tela de escolha de plano para usuário logado sem assinatura ativa.
-  // Novos usuários sem session vão para a aba de cadastro/login normalmente.
-  // Lê o step da URL uma única vez no topo
   const stepFromUrl = new URLSearchParams(window.location.search).get("step") === "plans";
 
   React.useEffect(() => {
@@ -94,9 +94,6 @@ function AuthPage() {
     }
   }, [session, stepFromUrl]);
 
-  // Redireciona para dashboard apenas quando NÃO estamos no step de planos
-  // (evita loop: se o usuário não tem assinatura ativa, o /_authenticated
-  // redirecta para /auth?step=plans e para aí — não redireciona de volta)
   React.useEffect(() => {
     if (!loading && session && !stepFromUrl) {
       navigate({ to: "/dashboard", replace: true });
@@ -161,7 +158,6 @@ function AuthPage() {
     navigate({ to: "/dashboard" });
   };
 
-  // Ativação real: busca o UUID do plano pela slug, depois upsert
   const handleActivatePlan = async (slug: string) => {
     if (!session?.user) {
       setMode("login");
@@ -171,7 +167,6 @@ function AuthPage() {
     }
     setActivating(slug);
 
-    // 1. Descobre o UUID do plano pela slug
     const { data: plan, error: planError } = await supabase
       .from("plans")
       .select("id")
@@ -184,7 +179,6 @@ function AuthPage() {
       return;
     }
 
-    // 2. Monta a assinatura
     const isLifetime = slug === "lifetime";
     const periodEnd = isLifetime ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -193,7 +187,7 @@ function AuthPage() {
       .upsert(
         {
           user_id: session.user.id,
-          plan_id: plan.id,          // UUID real do plano
+          plan_id: plan.id,
           status: "active",
           current_period_end: periodEnd,
         },
@@ -205,7 +199,7 @@ function AuthPage() {
       toast.error("Erro ao ativar plano", { description: subError.message });
       return;
     }
-    toast.success("Plano ativado! Bem-vindo ao AfiliaHub.");
+    toast.success("Plano ativado! Bem-vindo ao Mercado Ecommerce.");
     navigate({ to: "/dashboard" });
   };
 
@@ -215,7 +209,7 @@ function AuthPage() {
         <header className="border-b border-white/10 bg-[#0A0A0A]/90 px-5 py-4">
           <div className="mx-auto flex max-w-4xl items-center justify-between">
             <span className="font-display text-xl font-bold">
-              <span className="text-[#FFD000]">Afilia</span>Hub
+              <span className="text-[#FFD000]">Mercado</span> Ecommerce
             </span>
             <div className="flex items-center gap-3">
               <span className="text-sm text-white/50">{session?.user?.email}</span>
@@ -318,7 +312,7 @@ function AuthPage() {
       <div className="hidden flex-col justify-between bg-[#0A0A0A] p-12 text-white lg:flex">
         <Link to="/" className="text-white">
           <span className="font-display text-xl font-semibold">
-            <span className="text-[#FFD000]">Afilia</span>Hub
+            <span className="text-[#FFD000]">Mercado</span> Ecommerce
           </span>
         </Link>
         <div className="max-w-md">
@@ -340,7 +334,7 @@ function AuthPage() {
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
             <span className="font-display text-xl font-semibold text-white">
-              <span className="text-[#FFD000]">Afilia</span>Hub
+              <span className="text-[#FFD000]">Mercado</span> Ecommerce
             </span>
           </div>
 

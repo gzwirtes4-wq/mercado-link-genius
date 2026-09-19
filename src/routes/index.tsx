@@ -17,13 +17,13 @@ import { useAuth } from "@/hooks/useAuth";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "AfiliaHub | Transforme produtos em oportunidades de vendas" },
+      { title: "Mercado Ecommerce | Transforme produtos em oportunidades de vendas" },
       {
         name: "description",
         content:
           "Plataforma premium para afiliados do Mercado Livre: encontre produtos, gere links oficiais, crie anúncios e acompanhe seus resultados.",
       },
-      { property: "og:title", content: "AfiliaHub | Transforme produtos em oportunidades de vendas" },
+      { property: "og:title", content: "Mercado Ecommerce | Transforme produtos em oportunidades de vendas" },
       {
         property: "og:description",
         content:
@@ -111,7 +111,7 @@ function Landing() {
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0A0A0A]/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
           <span className="font-display text-xl font-bold tracking-tight">
-            <span className="text-[#FFD000]">Afilia</span>Hub
+            <span className="text-[#FFD000]">Mercado</span> Ecommerce
           </span>
           <nav className="hidden items-center gap-7 text-sm text-white/60 md:flex">
             <a href="#como-funciona" className="hover:text-white transition-colors">Como funciona</a>

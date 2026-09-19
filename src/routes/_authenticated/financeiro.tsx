@@ -13,9 +13,9 @@ import { fetchCommissions, fetchIntegration } from "@/lib/queries";
 export const Route = createFileRoute("/_authenticated/financeiro")({
   head: () => ({
     meta: [
-      { title: "Financeiro | AfiliaHub" },
+      { title: "Financeiro | Mercado Ecommerce" },
       { name: "description", content: "Comissões disponíveis, pendentes e histórico." },
-      { property: "og:title", content: "Financeiro | AfiliaHub" },
+      { property: "og:title", content: "Financeiro | Mercado Ecommerce" },
       { property: "og:description", content: "Comissões disponíveis, pendentes e histórico." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

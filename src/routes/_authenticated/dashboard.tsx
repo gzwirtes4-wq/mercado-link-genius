@@ -41,9 +41,9 @@ import {
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Dashboard | AfiliaHub" },
+      { title: "Dashboard | Mercado Ecommerce" },
       { name: "description", content: "Acompanhe produtos, links, cliques, pedidos e comissões." },
-      { property: "og:title", content: "Dashboard | AfiliaHub" },
+      { property: "og:title", content: "Dashboard | Mercado Ecommerce" },
       { property: "og:description", content: "Acompanhe produtos, links, cliques, pedidos e comissões." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

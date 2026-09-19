@@ -15,9 +15,9 @@ import { fetchIntegration, fetchOrders } from "@/lib/queries";
 export const Route = createFileRoute("/_authenticated/pedidos")({
   head: () => ({
     meta: [
-      { title: "Pedidos | AfiliaHub" },
+      { title: "Pedidos | Mercado Ecommerce" },
       { name: "description", content: "Acompanhe os pedidos vindos das suas divulgações." },
-      { property: "og:title", content: "Pedidos | AfiliaHub" },
+      { property: "og:title", content: "Pedidos | Mercado Ecommerce" },
       { property: "og:description", content: "Acompanhe os pedidos vindos das suas divulgações." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

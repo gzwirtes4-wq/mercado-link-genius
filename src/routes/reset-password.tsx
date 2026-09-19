@@ -10,9 +10,9 @@ export const Route = createFileRoute("/reset-password")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Criar nova senha | AfiliaHub" },
+      { title: "Criar nova senha | Mercado Ecommerce" },
       { name: "description", content: "Defina uma nova senha para acessar o painel AfiliaHub." },
-      { property: "og:title", content: "Criar nova senha | AfiliaHub" },
+      { property: "og:title", content: "Criar nova senha | Mercado Ecommerce" },
       { property: "og:description", content: "Defina uma nova senha para acessar o painel AfiliaHub." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

@@ -12,9 +12,9 @@ import { useAuth } from "@/hooks/useAuth";
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   head: () => ({
     meta: [
-      { title: "Configurações | AfiliaHub" },
+      { title: "Configurações | Mercado Ecommerce" },
       { name: "description", content: "Perfil, segurança e plano ativo." },
-      { property: "og:title", content: "Configurações | AfiliaHub" },
+      { property: "og:title", content: "Configurações | Mercado Ecommerce" },
       { property: "og:description", content: "Perfil, segurança e plano ativo." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

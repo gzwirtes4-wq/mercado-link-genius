@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/_authenticated/integracoes")({
   head: () => ({
     meta: [
-      { title: "Integrações | AfiliaHub" },
+      { title: "Integrações | Mercado Ecommerce" },
       { name: "description", content: "Conecte suas contas de plataformas de e-commerce." },
     ],
   }),

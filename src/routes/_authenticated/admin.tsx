@@ -13,9 +13,9 @@ import { fetchProducts, fetchTickets } from "@/lib/queries";
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [
-      { title: "Admin | AfiliaHub" },
+      { title: "Admin | Mercado Ecommerce" },
       { name: "description", content: "Painel administrativo de usuários, produtos e chamados." },
-      { property: "og:title", content: "Admin | AfiliaHub" },
+      { property: "og:title", content: "Admin | Mercado Ecommerce" },
       { property: "og:description", content: "Painel administrativo de usuários, produtos e chamados." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
