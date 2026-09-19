@@ -85,19 +85,23 @@ function AuthPage() {
 
   // Exibe tela de escolha de plano para usuário logado sem assinatura ativa.
   // Novos usuários sem session vão para a aba de cadastro/login normalmente.
-  React.useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("step") === "plans") {
-      if (session) {
-        setShowPlans(true);
-      }
-      // Se não tem session, mantém showPlans=false (login/signup tabs)
-    }
-  }, [session]);
+  // Lê o step da URL uma única vez no topo
+  const stepFromUrl = new URLSearchParams(window.location.search).get("step") === "plans";
 
   React.useEffect(() => {
-    if (!loading && session) navigate({ to: "/dashboard", replace: true });
-  }, [loading, session, navigate]);
+    if (stepFromUrl && session) {
+      setShowPlans(true);
+    }
+  }, [session, stepFromUrl]);
+
+  // Redireciona para dashboard apenas quando NÃO estamos no step de planos
+  // (evita loop: se o usuário não tem assinatura ativa, o /_authenticated
+  // redirecta para /auth?step=plans e para aí — não redireciona de volta)
+  React.useEffect(() => {
+    if (!loading && session && !stepFromUrl) {
+      navigate({ to: "/dashboard", replace: true });
+    }
+  }, [loading, session, stepFromUrl, navigate]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
