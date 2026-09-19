@@ -16,6 +16,7 @@ import { Route as AuthenticatedFinanceiroRouteImport } from './routes/_authentic
 import { Route as AuthenticatedIntegracoesRouteImport } from './routes/_authenticated/integracoes'
 import { Route as AuthenticatedMeusProdutosRouteImport } from './routes/_authenticated/meus-produtos'
 import { Route as AuthenticatedPedidosRouteImport } from './routes/_authenticated/pedidos'
+import { Route as AuthenticatedProdutosDivulgarRouteImport } from './routes/_authenticated/produtos-divulgar'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -94,6 +95,12 @@ const AuthenticatedPedidosRoute = AuthenticatedPedidosRouteImport.update({
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 
+const AuthenticatedProdutosDivulgarRoute = AuthenticatedProdutosDivulgarRouteImport.update({
+  id: '/_authenticated/produtos-divulgar',
+  path: '/produtos-divulgar',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/integracoes': typeof AuthenticatedIntegracoesRoute
   '/meus-produtos': typeof AuthenticatedMeusProdutosRoute
   '/pedidos': typeof AuthenticatedPedidosRoute
+  '/produtos-divulgar': typeof AuthenticatedProdutosDivulgarRoute
 }
 
 export interface FileRoutesByTo {
@@ -122,6 +130,7 @@ export interface FileRoutesByTo {
   '/integracoes': typeof AuthenticatedIntegracoesRoute
   '/meus-produtos': typeof AuthenticatedMeusProdutosRoute
   '/pedidos': typeof AuthenticatedPedidosRoute
+  '/produtos-divulgar': typeof AuthenticatedProdutosDivulgarRoute
 }
 
 export interface FileRoutesById {
@@ -139,6 +148,7 @@ export interface FileRoutesById {
   '/_authenticated/integracoes': typeof AuthenticatedIntegracoesRoute
   '/_authenticated/meus-produtos': typeof AuthenticatedMeusProdutosRoute
   '/_authenticated/pedidos': typeof AuthenticatedPedidosRoute
+  '/_authenticated/produtos-divulgar': typeof AuthenticatedProdutosDivulgarRoute
 }
 
 export interface RootRouteChildren {
@@ -241,6 +251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPedidosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/produtos-divulgar': {
+      id: '/_authenticated/produtos-divulgar'
+      path: '/produtos-divulgar'
+      fullPath: '/produtos-divulgar'
+      preLoaderRoute: typeof AuthenticatedProdutosDivulgarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -254,6 +271,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIntegracoesRoute: typeof AuthenticatedIntegracoesRoute
   AuthenticatedMeusProdutosRoute: typeof AuthenticatedMeusProdutosRoute
   AuthenticatedPedidosRoute: typeof AuthenticatedPedidosRoute
+  AuthenticatedProdutosDivulgarRoute: typeof AuthenticatedProdutosDivulgarRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -266,6 +284,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIntegracoesRoute: AuthenticatedIntegracoesRoute,
   AuthenticatedMeusProdutosRoute: AuthenticatedMeusProdutosRoute,
   AuthenticatedPedidosRoute: AuthenticatedPedidosRoute,
+  AuthenticatedProdutosDivulgarRoute: AuthenticatedProdutosDivulgarRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
