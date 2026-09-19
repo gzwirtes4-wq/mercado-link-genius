@@ -1,27 +1,16 @@
-import { QueryClient } from "@tanstack/react-query";
-import { createRouter as createTanStackRouter } from "@tanstack/react-router";
+import { createRouter as createTanStackRouter, default as Router } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30 * 1000,
-      retry: 1,
-    },
-  },
-});
-
-export function createRouter() {
-  return createTanStackRouter({
-    routeTree,
-    context: { queryClient } as never,
-    defaultPreload: "viewport",
-    defaultPreloadStaleTime: 0,
-    wrapInRouter: true,
-    defaultStructuralSharing: true,
-  });
-}
-
-export const router = createRouter();
-
-export { queryClient };
+export const router = createTanStackRouter({ routeTree });
+export {
+  Router,
+  Link,
+  redirect,
+  useNavigate,
+  useParams,
+  useSearch,
+  useLoaderData,
+  useActionData,
+  useRouteError,
+  isRedirectError,
+} from "@tanstack/react-router";
