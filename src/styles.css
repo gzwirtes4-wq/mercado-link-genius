@@ -170,14 +170,15 @@
   }
 }
 
-@utility surface {
+/* Surface and hover styles */
+.surface {
   background-color: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-card);
 }
 
-@utility surface-hover {
+.surface-hover {
   background-color: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
@@ -185,7 +186,7 @@
   transition: all 0.2s ease;
 }
 
-@utility surface-hover:hover {
+.surface-hover:hover {
   box-shadow: var(--shadow-lift);
   border-color: var(--color-brand);
 }
