@@ -9,6 +9,8 @@ import {
   TrendingUp,
   Plug,
   Store,
+  Zap,
+  DollarSign,
 } from "lucide-react";
 import {
   Area,
@@ -55,22 +57,36 @@ function StatCard({
   label,
   value,
   hint,
+  trend,
+  isHighlight,
 }: {
   icon: typeof Package;
   label: string;
   value: string;
   hint?: string;
+  trend?: string;
+  isHighlight?: boolean;
 }) {
   return (
-    <div className="surface p-5">
-      <div className="flex items-center justify-between">
+    <div className={`surface group relative overflow-hidden p-5 transition-all duration-300 hover:shadow-[var(--shadow-lift)] ${isHighlight ? 'border-primary/30' : ''}`}>
+      {isHighlight && (
+        <div className="absolute -right-4 -top-4 size-24 rounded-full bg-primary/10 blur-2xl" />
+      )}
+      <div className="relative flex items-center justify-between">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-        <div className="grid size-8 place-items-center rounded-lg bg-accent">
-          <Icon className="size-4" />
+        <div className={`grid size-10 place-items-center rounded-xl transition-transform duration-300 group-hover:scale-110 ${isHighlight ? 'bg-primary text-primary-foreground' : 'bg-accent'}`}>
+          <Icon className={`size-5 ${isHighlight ? '' : ''}`} />
         </div>
       </div>
-      <p className="mt-3 font-display text-2xl font-semibold">{value}</p>
-      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+      <div className="relative mt-4">
+        <p className="font-display text-3xl font-bold">{value}</p>
+        {trend && (
+          <p className="mt-1 flex items-center gap-1 text-xs font-medium text-success">
+            <TrendingUp className="size-3" /> {trend}
+          </p>
+        )}
+        {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+      </div>
     </div>
   );
 }
@@ -112,38 +128,59 @@ function Dashboard() {
   return (
     <AppLayout
       title={`${greeting()}, ${firstName(profile?.full_name, user?.email)}`}
-      description="Visão geral da sua operação de afiliado."
+      description="Encontre produtos, prepare suas divulgações e acompanhe seus resultados."
       actions={
-        <Button asChild size="sm" className="hidden sm:inline-flex">
+        <Button asChild size="sm" className="hidden sm:inline-flex bg-primary text-primary-foreground hover:bg-primary/90">
           <Link to="/catalogo">
-            <Store className="size-4" /> Explorar catálogo
+            <Store className="size-4 mr-2" /> Explorar catálogo
           </Link>
         </Button>
       }
     >
+      {/* Premium Integration Alert */}
       {!connected && (
-        <div className="surface mb-6 flex flex-col gap-3 border-brand/40 bg-brand/5 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="flex items-center gap-2 text-sm font-semibold">
-              <Plug className="size-4" /> Integração não configurada
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Conecte sua conta do Mercado Livre pelo fluxo oficial para receber pedidos e comissões reais.
-              Até lá, vendas e comissões ficam zeradas — nada é simulado.
-            </p>
+        <div className="surface mb-6 flex flex-col gap-3 border-primary/30 bg-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
+              <Plug className="size-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Integração não configurada</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Conecte sua conta do Mercado Livre pelo fluxo oficial para receber pedidos e comissões reais.
+                Até lá, vendas e comissões ficam zeradas — nada é simulado.
+              </p>
+            </div>
           </div>
-          <Button asChild size="sm">
+          <Button asChild size="sm" className="shrink-0 bg-primary text-primary-foreground hover:bg-primary/90">
             <Link to="/integracoes">Configurar</Link>
           </Button>
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <StatCard icon={Package} label="Produtos cadastrados" value={String(myProducts.data?.length ?? 0)} />
-        <StatCard icon={Link2} label="Links gerados" value={String(links.data?.length ?? 0)} />
-        <StatCard icon={MousePointerClick} label="Cliques" value={clicks.toLocaleString("pt-BR")} />
+      {connected && (
+        <div className="surface mb-6 flex items-center gap-4 border-success/30 bg-success/5 p-4">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-success text-success-foreground">
+            <Zap className="size-5" />
+          </div>
+          <div className="flex-1">
+            <p className="flex items-center gap-2 text-sm font-semibold text-success">
+              <Store className="size-4" /> Mercado Livre conectado
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Conta: {integration.data?.account_identifier} • Suas vendas e comissões aparecem em tempo real
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Premium Stats Grid */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        <StatCard icon={Package} label="Produtos" value={String(myProducts.data?.length ?? 0)} isHighlight />
+        <StatCard icon={Link2} label="Links" value={String(links.data?.length ?? 0)} />
+        <StatCard icon={MousePointerClick} label="Cliques" value={clicks.toLocaleString("pt-BR")} isHighlight />
         <StatCard
-          icon={TrendingUp}
+          icon={DollarSign}
           label="Vendas"
           value={String(sales)}
           hint={connected ? undefined : "Aguardando integração"}
@@ -153,17 +190,28 @@ function Dashboard() {
           label="Comissão"
           value={brl(commissionTotal)}
           hint={connected ? undefined : "Aguardando integração"}
+          isHighlight
         />
         <StatCard icon={ShoppingBag} label="Pedidos" value={String(orders.data?.length ?? 0)} />
       </div>
 
+      {/* Charts Section */}
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <div className="surface p-5">
-          <h2 className="text-sm font-semibold">Cliques por produto</h2>
+        <div className="surface overflow-hidden p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Cliques por produto</h2>
+            <Badge variant="secondary" className="bg-primary/10 text-primary">{clicks} cliques</Badge>
+          </div>
           {clicksByProduct.length === 0 ? (
-            <p className="py-14 text-center text-sm text-muted-foreground">
-              Ainda não há cliques registrados. Gere links em Meus Produtos para começar a medir.
-            </p>
+            <div className="flex flex-col items-center justify-center py-14 text-center">
+              <div className="grid size-12 place-items-center rounded-2xl bg-primary/10">
+                <MousePointerClick className="size-5 text-primary" />
+              </div>
+              <p className="mt-4 text-sm font-medium">Nenhum clique ainda</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Gere links em Meus Produtos para começar a medir.
+              </p>
+            </div>
           ) : (
             <div className="mt-4 h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -171,20 +219,35 @@ function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                  <Tooltip />
-                  <Bar dataKey="cliques" fill="var(--chart-1)" radius={[6, 6, 0, 0]} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: 'var(--card)', 
+                      border: '1px solid var(--border)', 
+                      borderRadius: 'var(--radius-lg)' 
+                    }}
+                  />
+                  <Bar dataKey="cliques" fill="var(--primary)" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           )}
         </div>
 
-        <div className="surface p-5">
-          <h2 className="text-sm font-semibold">Pedidos ao longo do tempo</h2>
+        <div className="surface overflow-hidden p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Pedidos ao longo do tempo</h2>
+            <Badge variant="secondary" className="bg-success/10 text-success">{orders.data?.length ?? 0} pedidos</Badge>
+          </div>
           {ordersByMonth.length === 0 ? (
-            <p className="py-14 text-center text-sm text-muted-foreground">
-              Sem pedidos registrados. Os dados aparecem aqui quando a integração oficial estiver ativa.
-            </p>
+            <div className="flex flex-col items-center justify-center py-14 text-center">
+              <div className="grid size-12 place-items-center rounded-2xl bg-muted">
+                <TrendingUp className="size-5 text-muted-foreground" />
+              </div>
+              <p className="mt-4 text-sm font-medium">Sem pedidos registrados</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Os dados aparecem aqui quando a integração oficial estiver ativa.
+              </p>
+            </div>
           ) : (
             <div className="mt-4 h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -192,8 +255,26 @@ function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                   <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                  <Tooltip />
-                  <Area dataKey="pedidos" stroke="var(--chart-2)" fill="var(--chart-2)" fillOpacity={0.18} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: 'var(--card)', 
+                      border: '1px solid var(--border)', 
+                      borderRadius: 'var(--radius-lg)' 
+                    }}
+                  />
+                  <defs>
+                    <linearGradient id="colorPedidos" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <Area 
+                    type="monotone" 
+                    dataKey="pedidos" 
+                    stroke="var(--primary)" 
+                    fill="url(#colorPedidos)" 
+                    strokeWidth={2}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -201,11 +282,12 @@ function Dashboard() {
         </div>
       </div>
 
+      {/* Featured Products */}
       <div className="mt-6">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold">Produtos em destaque</h2>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/catalogo">Ver catálogo</Link>
+          <Button asChild variant="ghost" size="sm" className="text-primary">
+            <Link to="/catalogo">Ver catálogo →</Link>
           </Button>
         </div>
         {(featured.data ?? []).length === 0 ? (
@@ -213,16 +295,24 @@ function Dashboard() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {(featured.data ?? []).slice(0, 4).map((p) => (
-              <div key={p.id} className="surface overflow-hidden">
+              <div key={p.id} className="surface group overflow-hidden transition-all duration-300 hover:shadow-[var(--shadow-lift)]">
                 {p.image_url && (
-                  <img src={p.image_url} alt={p.title} loading="lazy" className="h-32 w-full object-cover" />
+                  <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                    <img 
+                      src={p.image_url} 
+                      alt={p.title} 
+                      loading="lazy" 
+                      className="size-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                  </div>
                 )}
                 <div className="p-4">
                   <Badge variant="secondary" className="text-[10px]">
                     {p.category}
                   </Badge>
-                  <p className="mt-2 line-clamp-2 text-sm font-medium">{p.title}</p>
-                  <p className="mt-2 font-display text-base font-semibold">{brl(Number(p.price))}</p>
+                  <p className="mt-2 line-clamp-2 text-sm font-semibold">{p.title}</p>
+                  <p className="mt-2 font-display text-xl font-bold">{brl(Number(p.price))}</p>
                 </div>
               </div>
             ))}

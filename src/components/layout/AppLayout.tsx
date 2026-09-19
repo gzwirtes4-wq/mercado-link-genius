@@ -36,7 +36,7 @@ const NAV = [
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground">
+      <div className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-md">
         <Sparkles className="size-4" />
       </div>
       {!compact && (
@@ -63,13 +63,16 @@ function NavList({ isAdmin, onNavigate }: { isAdmin: boolean; onNavigate?: () =>
             to={item.to}
             onClick={onNavigate}
             className={cn(
-              "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+              "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
               active
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                ? "bg-primary text-primary-foreground shadow-md"
+                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
             )}
           >
-            <item.icon className={cn("size-4", active ? "opacity-100" : "opacity-70")} />
+            {active && (
+              <div className="absolute -left-4 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-primary" />
+            )}
+            <item.icon className={cn("size-4", active ? "opacity-100" : "opacity-70 group-hover:opacity-100")} />
             {item.label}
           </Link>
         );
@@ -105,27 +108,41 @@ export function AppLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[264px] flex-col border-r border-sidebar-border bg-sidebar px-4 py-5 lg:flex">
-        <Link to="/dashboard" className="px-1">
-          <Logo />
-        </Link>
-        <div className="mt-7 flex-1 overflow-y-auto">
-          <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      {/* Premium Sidebar */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[280px] flex-col border-r border-sidebar-border bg-sidebar lg:flex">
+        {/* Gradient accent */}
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-transparent" />
+        
+        <div className="px-6 py-6">
+          <Link to="/dashboard">
+            <Logo />
+          </Link>
+        </div>
+        
+        <div className="mt-2 flex-1 overflow-y-auto px-4">
+          <p className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Menu
           </p>
           <NavList isAdmin={isAdmin} />
         </div>
-        <div className="rounded-xl border border-border bg-muted/40 p-3">
-          <p className="truncate text-sm font-medium capitalize">{name}</p>
-          <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
-          <Button variant="outline" size="sm" className="mt-3 w-full" onClick={signOut}>
-            <LogOut className="size-4" /> Sair
+        
+        <div className="m-4 rounded-xl border border-sidebar-border bg-sidebar-accent/50 p-4">
+          <p className="truncate text-sm font-semibold capitalize">{name}</p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">{user?.email}</p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="mt-3 w-full border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground" 
+            onClick={signOut}
+          >
+            <LogOut className="size-4 mr-2" /> Sair
           </Button>
         </div>
       </aside>
 
-      <div className="lg:pl-[264px]">
-        <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
+      <div className="lg:pl-[280px]">
+        {/* Premium Header */}
+        <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <div className="flex items-center gap-3 px-4 py-4 sm:px-6 lg:px-8">
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
@@ -133,24 +150,31 @@ export function AppLayout({
                   <Menu className="size-4" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[280px] p-0">
+              <SheetContent side="left" className="w-[300px] border-r border-sidebar-border bg-sidebar p-0">
                 <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
-                <div className="flex h-full flex-col px-4 py-5">
-                  <Logo />
+                <div className="flex h-full flex-col px-5 py-6">
+                  <Link onClick={() => setOpen(false)} to="/dashboard">
+                    <Logo />
+                  </Link>
                   <div className="mt-6 flex-1 overflow-y-auto">
                     <NavList isAdmin={isAdmin} onNavigate={() => setOpen(false)} />
                   </div>
-                  <Button variant="outline" size="sm" onClick={signOut}>
-                    <LogOut className="size-4" /> Sair
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-4 border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground" 
+                    onClick={signOut}
+                  >
+                    <LogOut className="size-4 mr-2" /> Sair
                   </Button>
                 </div>
               </SheetContent>
             </Sheet>
 
             <div className="min-w-0 flex-1">
-              <h1 className="truncate font-display text-lg font-semibold sm:text-xl">{title}</h1>
+              <h1 className="truncate font-display text-xl font-semibold sm:text-2xl">{title}</h1>
               {description && (
-                <p className="truncate text-xs text-muted-foreground sm:text-sm">{description}</p>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground sm:text-sm">{description}</p>
               )}
             </div>
             {actions}
