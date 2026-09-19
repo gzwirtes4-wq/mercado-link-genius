@@ -58,9 +58,10 @@
   --shadow-glow: 0 0 20px oklch(0.79 0.2 60 / 0.3);
 }
 
-:root {
+/* Light theme - clean and professional */
+:root,
+html:not(.dark) {
   --radius: 0.875rem;
-  /* Light theme - clean and professional */
   --background: oklch(0.985 0.003 250);
   --foreground: oklch(0.15 0.03 265);
   --card: oklch(1 0 0);
@@ -104,8 +105,10 @@
   --sidebar-ring: oklch(0.79 0.2 60);
 }
 
+/* Dark theme - Premium Black + Yellow */
+html.dark,
+html.dark body,
 .dark {
-  /* Dark theme - Premium Black + Yellow */
   --background: oklch(0.07 0.02 265);
   --foreground: oklch(0.97 0.003 250);
   --card: oklch(0.11 0.02 265);
@@ -154,6 +157,8 @@
     border-color: var(--color-border);
   }
 
+  html,
+  html.dark,
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
@@ -170,46 +175,48 @@
   }
 }
 
-/* Surface and hover styles */
+/* Surface and hover styles - always dark theme */
 .surface {
-  background-color: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
+  background-color: var(--color-card) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-xl) !important;
+  box-shadow: var(--shadow-card) !important;
+  color: var(--color-card-foreground) !important;
 }
 
 .surface-hover {
-  background-color: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lift);
-  transition: all 0.2s ease;
+  background-color: var(--color-card) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-xl) !important;
+  box-shadow: var(--shadow-lift) !important;
+  transition: all 0.2s ease !important;
+  color: var(--color-card-foreground) !important;
 }
 
 .surface-hover:hover {
-  box-shadow: var(--shadow-lift);
-  border-color: var(--color-brand);
+  box-shadow: var(--shadow-lift) !important;
+  border-color: var(--color-brand) !important;
 }
 
 /* Premium button styles */
 .btn-primary {
-  background-color: var(--primary);
-  color: var(--primary-foreground);
-  font-weight: 600;
-  border-radius: var(--radius-lg);
-  transition: all 0.2s ease;
+  background-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  font-weight: 600 !important;
+  border-radius: var(--radius-lg) !important;
+  transition: all 0.2s ease !important;
 }
 
 .btn-primary:hover {
-  filter: brightness(1.1);
-  box-shadow: var(--shadow-glow);
+  filter: brightness(1.1) !important;
+  box-shadow: var(--shadow-glow) !important;
 }
 
 /* Gradient accents */
 .gradient-yellow {
-  background: linear-gradient(135deg, oklch(0.79 0.2 60) 0%, oklch(0.85 0.18 65) 100%);
+  background: linear-gradient(135deg, oklch(0.79 0.2 60) 0%, oklch(0.85 0.18 65) 100%) !important;
 }
 
 .gradient-dark {
-  background: linear-gradient(135deg, oklch(0.11 0.02 265) 0%, oklch(0.07 0.02 265) 100%);
+  background: linear-gradient(135deg, oklch(0.11 0.02 265) 0%, oklch(0.07 0.02 265) 100%) !important;
 }
