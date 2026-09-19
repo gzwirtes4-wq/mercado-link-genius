@@ -183,12 +183,13 @@
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lift);
   transition: all 0.2s ease;
+
+  &:hover {
+    box-shadow: var(--shadow-lift);
+    border-color: var(--color-brand);
+  }
 }
 
-@utility surface-hover:hover {
-  box-shadow: var(--shadow-lift);
-  border-color: var(--color-brand);
-}
 
 /* Premium button styles */
 .btn-primary {
