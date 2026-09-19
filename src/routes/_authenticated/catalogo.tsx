@@ -11,10 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { brl } from "@/lib/format";
-import { fetchMyProducts, fetchProducts, type Product } from "@/lib/queries";
+import { fetchMyProducts, fetchProducts, fetchIntegration, type Product } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/catalogo")({
   head: () => ({
@@ -37,6 +38,8 @@ function Catalogo() {
 
   const products = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
   const mine = useQuery({ queryKey: ["my-products", uid], queryFn: () => fetchMyProducts(uid), enabled: !!uid });
+  const integration = useQuery({ queryKey: ["integration", uid], queryFn: () => fetchIntegration(uid), enabled: !!uid });
+  const connected = integration.data?.status === "connected";
 
   const [search, setSearch] = React.useState("");
   const [category, setCategory] = React.useState("todas");
@@ -83,90 +86,96 @@ function Catalogo() {
     });
 
   return (
-    <AppLayout title="Catálogo" description="Encontre produtos para divulgar.">
-      <div className="surface mb-5 p-4">
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por produto ou categoria..."
-              className="pl-9"
-            />
+    <AppLayout title="Catálogo" description="Escolha produtos para divulgar e prepare seus anúncios.">
+      {!connected && (
+        <div className="surface mb-6 flex flex-col gap-3 border-brand/40 bg-brand/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold">Integração não configurada</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Conecte sua conta do Mercado Livre para visualizar produtos reais do programa de afiliados.
+            </p>
           </div>
-          <Button variant="outline" onClick={() => setShowFilters((v) => !v)}>
+          <Button asChild size="sm" className="shrink-0">
+            <a href="/integracoes">Configurar</a>
+          </Button>
+        </div>
+      )}
+
+      <div className="surface mb-6 p-5">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar produto ou categoria"
+            className="h-12 pl-12 text-base"
+          />
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <Button
+            variant={showFilters ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowFilters((v) => !v)}
+          >
             <SlidersHorizontal className="size-4" /> Filtros
           </Button>
+
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger className="h-9 w-[180px]">
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas as categorias</SelectItem>
+              {categories.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={sort} onValueChange={setSort}>
+            <SelectTrigger className="h-9 w-[180px]">
+              <SelectValue placeholder="Ordenar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="popularidade">Mais vendidos</SelectItem>
+              <SelectItem value="novidades">Novidades</SelectItem>
+              <SelectItem value="avaliacao">Melhor avaliação</SelectItem>
+              <SelectItem value="preco-asc">Menor preço</SelectItem>
+              <SelectItem value="preco-desc">Maior preço</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={minRating} onValueChange={setMinRating}>
+            <SelectTrigger className="h-9 w-[160px]">
+              <SelectValue placeholder="Avaliação" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">Qualquer avaliação</SelectItem>
+              <SelectItem value="4">4+ estrelas</SelectItem>
+              <SelectItem value="4.5">4,5+ estrelas</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {showFilters && (
-          <div className="mt-4 grid gap-4 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Categoria</label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas">Todas</SelectItem>
-                  {categories.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Ordenar por</label>
-              <Select value={sort} onValueChange={setSort}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="popularidade">Mais vendidos</SelectItem>
-                  <SelectItem value="novidades">Novidades</SelectItem>
-                  <SelectItem value="avaliacao">Melhor avaliação</SelectItem>
-                  <SelectItem value="preco-asc">Menor preço</SelectItem>
-                  <SelectItem value="preco-desc">Maior preço</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Avaliação mínima</label>
-              <Select value={minRating} onValueChange={setMinRating}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">Qualquer</SelectItem>
-                  <SelectItem value="4">4+ estrelas</SelectItem>
-                  <SelectItem value="4.5">4,5+ estrelas</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                Preço até {brl(maxPrice)}
-              </label>
-              <Slider
-                value={[maxPrice]}
-                min={50}
-                max={2000}
-                step={50}
-                onValueChange={(v) => setMaxPrice(v[0] ?? 2000)}
-                className="pt-3"
-              />
-            </div>
+          <div className="mt-5 border-t border-border pt-4">
+            <label className="mb-3 block text-sm font-medium">
+              Preço até {brl(maxPrice)}
+            </label>
+            <Slider
+              value={[maxPrice]}
+              min={50}
+              max={2000}
+              step={50}
+              onValueChange={(v) => setMaxPrice(v[0] ?? 2000)}
+              className="max-w-md"
+            />
           </div>
         )}
       </div>
-
-      <p className="mb-4 text-xs text-muted-foreground">
-        Este catálogo é um conjunto de exemplos para você testar as ferramentas. Após conectar sua conta do
-        Mercado Livre em Integrações, os produtos reais da API oficial aparecem aqui.
-      </p>
 
       {products.isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando produtos...</p>
@@ -177,7 +186,7 @@ function Catalogo() {
           description="Ajuste a busca ou os filtros para ver outros resultados."
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((p) => (
             <ProductCard
               key={p.id}

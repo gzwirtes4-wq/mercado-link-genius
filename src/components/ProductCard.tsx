@@ -78,6 +78,11 @@ export function ProductCard({
             </>
           )}
         </Button>
+        {saved && (
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            Encontre este produto em Meus Produtos para gerar seu link de afiliado.
+          </p>
+        )}
       </div>
     </article>
   );
