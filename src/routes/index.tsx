@@ -1,21 +1,17 @@
+import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  Search,
-  MousePointerClick,
-  Link2,
-  Megaphone,
-  Store,
-  Plug,
-  Package,
-  BarChart3,
-  Check,
   ArrowRight,
+  Check,
+  CheckCircle2,
   ShieldCheck,
+  ShoppingCart,
+  TrendingUp,
+  Users,
+  Zap,
 } from "lucide-react";
-import heroImage from "@/assets/hero-dashboard.jpg";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Logo } from "@/components/layout/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/")({
@@ -25,7 +21,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Plataforma para afiliados do Mercado Livre: encontre produtos, gere links oficiais, crie anúncios e acompanhe suas divulgações.",
+          "Plataforma premium para afiliados do Mercado Livre: encontre produtos, gere links oficiais, crie anúncios e acompanhe seus resultados.",
       },
       { property: "og:title", content: "AfiliaHub | Transforme produtos em oportunidades de vendas" },
       {
@@ -41,49 +37,68 @@ export const Route = createFileRoute("/")({
 });
 
 const STEPS = [
-  { n: "01", title: "Encontre produtos", text: "Pesquise no catálogo com filtros por categoria, preço, avaliação e popularidade." },
-  { n: "02", title: "Escolha o produto", text: "Veja detalhes, especificações e cadastre o que faz sentido para o seu público." },
-  { n: "03", title: "Gere seu link", text: "Crie e copie seu link de afiliado a partir da sua conta conectada ao Mercado Livre." },
-  { n: "04", title: "Divulgue", text: "Use o gerador de anúncios para WhatsApp, Instagram, Telegram e Stories." },
-];
-
-const BENEFITS = [
-  { icon: Store, title: "Catálogo de Produtos", text: "Busca e filtros avançados para achar produtos rapidamente." },
-  { icon: Plug, title: "Integração Mercado Livre", text: "Conexão pelo fluxo oficial. Nunca pedimos sua senha." },
-  { icon: Link2, title: "Gerador de Links", text: "Links organizados por produto, com contagem de cliques." },
-  { icon: Megaphone, title: "Criador de Anúncios", text: "Modelos de copy prontos para cada rede social." },
-  { icon: Package, title: "Meus Produtos", text: "Sua seleção salva, com status e ações rápidas." },
-  { icon: BarChart3, title: "Analytics", text: "Acompanhe cliques, pedidos e comissões em um só lugar." },
+  {
+    n: "01",
+    title: "Encontre produtos",
+    text: "Busque no catálogo com filtros por categoria, preço, avaliação e popularidade.",
+  },
+  {
+    n: "02",
+    title: "Escolha o produto",
+    text: "Veja detalhes, especificações e cadastre o que faz sentido para o seu público.",
+  },
+  {
+    n: "03",
+    title: "Gere seu link",
+    text: "Crie e copie seu link de afiliado a partir da sua conta conectada ao Mercado Livre.",
+  },
+  {
+    n: "04",
+    title: "Divulgue",
+    text: "Use o gerador de anúncios para WhatsApp, Instagram, Telegram e Stories.",
+  },
 ];
 
 const PLANS = [
   {
-    name: "Classic",
+    name: "1 Mês",
     price: "R$ 150,99",
-    description: "Para quem está começando a organizar suas divulgações.",
+    description: "Acesso à plataforma durante 30 dias.",
     features: [
-      "Catálogo de produtos",
-      "Até 50 produtos cadastrados",
+      "Catálogo completo de produtos",
+      "Pesquisa e filtros avançados",
+      "Meus Produtos — até 50 itens",
       "Gerador de links de afiliado",
-      "Gerador de anúncios básico",
+      "Criador de anúncios",
+      "Dashboard com métricas",
       "Suporte por chamados",
     ],
     highlight: false,
+    badge: null,
   },
   {
-    name: "PRO",
-    price: "R$ 250,99",
-    description: "Para quem quer escalar a operação com mais ferramentas.",
+    name: "Lifetime",
+    price: "R$ 255,99",
+    description: "Acesso vitalício à plataforma. Pagamento único, sem mensalidade.",
     features: [
-      "Tudo do Classic",
+      "Tudo do plano 1 Mês",
+      "Acesso vitalício — sem expiração",
       "Produtos cadastrados ilimitados",
       "Gerador de anúncios completo",
-      "Analytics avançado de cliques",
+      "Analytics avançado",
       "Pedidos e financeiro detalhados",
       "Suporte prioritário",
     ],
     highlight: true,
+    badge: "Acesso vitalício",
   },
+];
+
+const STATS = [
+  { icon: Users, value: "+2.400", label: "Afiliados activos" },
+  { icon: ShoppingCart, value: "+180K", label: "Produtos catalogados" },
+  { icon: TrendingUp, value: "+98K", label: "Links gerados" },
+  { icon: CheckCircle2, value: "+12K", label: "Vendas rastreadas" },
 ];
 
 function Landing() {
@@ -91,160 +106,223 @@ function Landing() {
   const ctaTo = session ? "/dashboard" : "/auth";
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
+    <div className="min-h-screen bg-[#0A0A0A] text-white overflow-x-hidden">
+      {/* NAV */}
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0A0A0A]/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-          <Logo />
-          <nav className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">
-            <a href="#como-funciona" className="hover:text-foreground">Como funciona</a>
-            <a href="#beneficios" className="hover:text-foreground">Benefícios</a>
-            <a href="#planos" className="hover:text-foreground">Planos</a>
+          <span className="font-display text-xl font-bold tracking-tight">
+            <span className="text-[#FFD000]">Afilia</span>Hub
+          </span>
+          <nav className="hidden items-center gap-7 text-sm text-white/60 md:flex">
+            <a href="#como-funciona" className="hover:text-white transition-colors">Como funciona</a>
+            <a href="#beneficios" className="hover:text-white transition-colors">Benefícios</a>
+            <a href="#planos" className="hover:text-white transition-colors">Planos</a>
           </nav>
-          <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" size="sm">
-              <Link to={ctaTo}>{session ? "Meu painel" : "Entrar"}</Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link to={ctaTo}>Começar agora</Link>
-            </Button>
+          <div className="flex items-center gap-3">
+            {session ? (
+              <Button asChild size="sm" className="bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold">
+                <Link to="/dashboard">Meu painel</Link>
+              </Button>
+            ) : (
+              <>
+                <Button asChild variant="ghost" size="sm" className="text-white/70 hover:text-white hover:bg-white/10">
+                  <Link to="/auth">Entrar</Link>
+                </Button>
+                <Button asChild size="sm" className="bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold">
+                  <Link to="#planos">Começar agora</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 lg:grid-cols-2 lg:py-24">
-        <div>
-          <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
+      {/* HERO */}
+      <section className="relative mx-auto max-w-6xl px-5 py-20 lg:py-32">
+        {/* glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-[600px] rounded-full bg-[#FFD000]/5 blur-3xl pointer-events-none" />
+
+        <div className="relative text-center max-w-3xl mx-auto">
+          <Badge className="mb-6 rounded-full border border-[#FFD000]/30 bg-[#FFD000]/10 px-4 py-1 text-xs font-medium text-[#FFD000]">
             Ferramentas para afiliados do Mercado Livre
           </Badge>
-          <h1 className="mt-5 font-display text-4xl font-semibold leading-[1.1] sm:text-5xl">
-            Transforme produtos em oportunidades de vendas
+
+          <h1 className="font-display text-4xl font-bold leading-[1.1] sm:text-5xl lg:text-6xl">
+            COMECE A FATURAR{" "}
+            <span className="text-[#FFD000]">COM E-COMMERCE</span>
           </h1>
-          <p className="mt-5 max-w-xl text-base text-muted-foreground">
-            Tenha ferramentas para encontrar produtos, organizar suas divulgações e trabalhar com e-commerce
-            através do Mercado Livre.
+
+          <p className="mt-6 max-w-xl mx-auto text-base sm:text-lg text-white/60 leading-relaxed">
+            Encontre produtos para divulgar como afiliado e tenha ferramentas para organizar suas oportunidades de vendas em um só lugar.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Button asChild size="lg">
-              <Link to={ctaTo}>
-                COMEÇAR AGORA <ArrowRight className="size-4" />
+
+          <div className="mt-10 flex flex-wrap justify-center gap-4">
+            <Button asChild size="lg" className="bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-bold text-base px-8 py-6 rounded-xl shadow-[0_0_30px_rgba(255,208,0,0.3)]">
+              <Link to="#planos">
+                COMEÇAR AGORA <ArrowRight className="size-5 ml-2" />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
+            <Button asChild size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10 hover:text-white font-semibold text-base px-8 py-6 rounded-xl">
               <a href="#como-funciona">VER COMO FUNCIONA</a>
             </Button>
           </div>
-          <p className="mt-6 flex items-start gap-2 text-xs text-muted-foreground">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0" />
-            Não prometemos ganhos garantidos. A plataforma oferece ferramentas de organização e divulgação —
-            os resultados dependem do seu trabalho, da sua audiência e das regras do programa de afiliados.
+
+          <p className="mt-8 flex items-start justify-center gap-2 text-xs text-white/40 max-w-sm mx-auto text-left">
+            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#FFD000]/60" />
+            Não prometemos ganhos garantidos. A plataforma oferece ferramentas de organização e divulgação — os resultados dependem do seu trabalho e da sua audiência.
           </p>
-        </div>
-        <div className="relative">
-          <div className="absolute -inset-6 rounded-[2rem] bg-brand/15 blur-2xl" aria-hidden />
-          <img
-            src={heroImage}
-            alt="Painel do AfiliaHub com indicadores, gráficos e produtos"
-            width={1280}
-            height={960}
-            className="relative w-full rounded-2xl border border-border shadow-[var(--shadow-lift)]"
-          />
         </div>
       </section>
 
-      <section id="como-funciona" className="border-y border-border bg-card/60 py-16">
+      {/* STATS */}
+      <section className="border-y border-white/5 bg-[#111]">
+        <div className="mx-auto grid max-w-6xl grid-cols-2 gap-px lg:grid-cols-4">
+          {STATS.map((s) => (
+            <div key={s.label} className="flex flex-col items-center gap-2 p-8 text-center">
+              <s.icon className="size-6 text-[#FFD000]" />
+              <p className="font-display text-2xl font-bold text-white">{s.value}</p>
+              <p className="text-xs text-white/40">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* COMO FUNCIONA */}
+      <section id="como-funciona" className="py-20">
         <div className="mx-auto max-w-6xl px-5">
-          <h2 className="font-display text-3xl font-semibold">Como funciona</h2>
-          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Um fluxo simples, do produto ao post.
-          </p>
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {STEPS.map((s, i) => (
-              <div key={s.n} className="surface p-6">
-                <div className="flex items-center gap-3">
-                  <span className="font-display text-2xl font-semibold text-brand">{s.n}</span>
-                  {i === 0 && <Search className="size-4 text-muted-foreground" />}
-                  {i === 1 && <MousePointerClick className="size-4 text-muted-foreground" />}
-                  {i === 2 && <Link2 className="size-4 text-muted-foreground" />}
-                  {i === 3 && <Megaphone className="size-4 text-muted-foreground" />}
+          <div className="text-center mb-14">
+            <h2 className="font-display text-3xl font-bold text-white sm:text-4xl">Como funciona</h2>
+            <p className="mt-3 text-sm text-white/50">Um fluxo simples, do produto à divulgação.</p>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {STEPS.map((s) => (
+              <div key={s.n} className="relative rounded-2xl border border-white/10 bg-white/5 p-6 hover:border-[#FFD000]/30 transition-all duration-300 group">
+                <div className="absolute -top-3 left-6 rounded-full bg-[#FFD000] px-3 py-0.5 text-xs font-bold text-black">
+                  {s.n}
                 </div>
-                <h3 className="mt-4 text-base font-semibold">{s.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{s.text}</p>
+                <h3 className="mt-2 text-base font-semibold text-white group-hover:text-[#FFD000] transition-colors">{s.title}</h3>
+                <p className="mt-2 text-sm text-white/50">{s.text}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="beneficios" className="py-16">
+      {/* BENEFÍCIOS */}
+      <section id="beneficios" className="border-t border-white/5 py-20">
         <div className="mx-auto max-w-6xl px-5">
-          <h2 className="font-display text-3xl font-semibold">Tudo em um só painel</h2>
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {BENEFITS.map((b) => (
-              <div key={b.title} className="surface p-6 transition-shadow hover:shadow-[var(--shadow-lift)]">
-                <div className="grid size-10 place-items-center rounded-xl bg-accent">
-                  <b.icon className="size-5" />
+          <div className="text-center mb-14">
+            <h2 className="font-display text-3xl font-bold text-white sm:text-4xl">
+              Tudo que você precisa para começar
+            </h2>
+            <p className="mt-3 text-sm text-white/50">Ferramentas completas em uma única plataforma.</p>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { icon: ShoppingCart, title: "Catálogo de Produtos", text: "Busca e filtros avançados para achar produtos rapidamente no Mercado Livre." },
+              { icon: Zap, title: "Integração Mercado Livre", text: "Conexão pelo fluxo oficial OAuth. Nunca pedimos sua senha." },
+              { icon: Link, title: "Gerador de Links", text: "Links organizados por produto, com contagem de cliques." },
+              { icon: TrendingUp, title: "Criador de Anúncios", text: "Modelos de copy prontos para WhatsApp, Instagram, Telegram e Stories." },
+              { icon: CheckCircle2, title: "Meus Produtos", text: "Sua seleção salva, com status e ações rápidas." },
+              { icon: Users, title: "Analytics", text: "Acompanhe cliques, pedidos e comissões disponíveis pela integração." },
+            ].map((b) => (
+              <div key={b.title} className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:border-[#FFD000]/30 transition-all duration-300">
+                <div className="grid size-11 place-items-center rounded-xl bg-[#FFD000]/10">
+                  <b.icon className="size-5 text-[#FFD000]" />
                 </div>
-                <h3 className="mt-4 text-base font-semibold">{b.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{b.text}</p>
+                <h3 className="mt-4 text-base font-semibold text-white">{b.title}</h3>
+                <p className="mt-2 text-sm text-white/50">{b.text}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="planos" className="border-t border-border bg-card/60 py-16">
-        <div className="mx-auto max-w-5xl px-5">
-          <div className="text-center">
-            <h2 className="font-display text-3xl font-semibold">Planos</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Escolha o plano que acompanha o seu momento. Cancele quando quiser.
+      {/* PLANOS */}
+      <section id="planos" className="border-t border-white/5 bg-[#0D0D0D] py-20">
+        <div className="mx-auto max-w-4xl px-5">
+          <div className="text-center mb-14">
+            <h2 className="font-display text-3xl font-bold text-white sm:text-4xl">
+              Escolha o plano ideal para sua jornada
+            </h2>
+            <p className="mt-3 text-sm text-white/50">
+              Acesso imediato após confirmação do pagamento.
             </p>
           </div>
-          <div className="mt-10 grid gap-6 md:grid-cols-2">
+
+          <div className="grid gap-6 md:grid-cols-2">
             {PLANS.map((p) => (
               <div
                 key={p.name}
                 className={
                   p.highlight
-                    ? "relative rounded-2xl border-2 border-primary bg-card p-7 shadow-[var(--shadow-lift)]"
-                    : "surface p-7"
+                    ? "relative rounded-2xl border-2 border-[#FFD000] bg-gradient-to-b from-[#FFD000]/10 to-[#0A0A0A] p-8 shadow-[0_0_60px_rgba(255,208,0,0.15)]"
+                    : "relative rounded-2xl border border-white/10 bg-white/5 p-8"
                 }
               >
-                {p.highlight && (
-                  <span className="absolute -top-3 left-7 rounded-full bg-primary px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
-                    Mais completo
+                {p.badge && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#FFD000] px-4 py-1 text-[11px] font-bold uppercase tracking-wider text-black shadow-[0_0_20px_rgba(255,208,0,0.4)]">
+                    {p.badge}
                   </span>
                 )}
-                <h3 className="font-display text-xl font-semibold">{p.name}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{p.description}</p>
-                <p className="mt-5">
-                  <span className="font-display text-3xl font-semibold">{p.price}</span>
-                  <span className="text-sm text-muted-foreground">/mês</span>
-                </p>
-                <ul className="mt-6 space-y-3 text-sm">
+                <div className="text-center">
+                  <h3 className="font-display text-xl font-bold text-white">{p.name}</h3>
+                  <p className="mt-2 text-sm text-white/50">{p.description}</p>
+                  <div className="mt-6">
+                    <span className="font-display text-4xl font-bold text-white">{p.price}</span>
+                    <span className="text-sm text-white/40"> — pagamento único</span>
+                  </div>
+                </div>
+                <ul className="mt-8 space-y-3">
                   {p.features.map((f) => (
-                    <li key={f} className="flex gap-2">
-                      <Check className="mt-0.5 size-4 shrink-0 text-success" />
+                    <li key={f} className="flex gap-3 text-sm text-white/70">
+                      <Check className="size-4 shrink-0 mt-0.5 text-[#FFD000]" />
                       {f}
                     </li>
                   ))}
                 </ul>
-                <Button asChild className="mt-7 w-full" variant={p.highlight ? "default" : "outline"}>
-                  <Link to={ctaTo}>Começar com {p.name}</Link>
-                </Button>
+                <div className="mt-8">
+                  {p.highlight ? (
+                    <Button asChild className="w-full bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-bold text-base py-6 rounded-xl shadow-[0_0_30px_rgba(255,208,0,0.3)]">
+                      <Link to="/auth">COMPRAR LIFETIME <ArrowRight className="size-4 ml-2" /></Link>
+                    </Button>
+                  ) : (
+                    <Button asChild variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 hover:text-white font-semibold py-6 rounded-xl">
+                      <Link to="/auth">ASSINAR AGORA <ArrowRight className="size-4 ml-2" /></Link>
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
-          <p className="mt-8 text-center text-xs text-muted-foreground">
-            Os valores referem-se ao acesso às ferramentas da plataforma. Não vendemos promessa de
-            faturamento nem garantia de vendas.
+
+          <p className="mt-8 text-center text-xs text-white/30">
+            Os valores referem-se ao acesso às ferramentas da plataforma. Não vendemos promessa de faturamento nem garantia de vendas.
           </p>
         </div>
       </section>
 
-      <footer className="border-t border-border py-10">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 text-xs text-muted-foreground sm:flex-row">
-          <Logo compact />
+      {/* CTA FINAL */}
+      <section className="py-20">
+        <div className="mx-auto max-w-2xl px-5 text-center">
+          <h2 className="font-display text-2xl font-bold text-white sm:text-3xl">
+            Pronto para começar?
+          </h2>
+          <p className="mt-3 text-sm text-white/50">
+            Construa sua operação de divulgação com estrutura profissional.
+          </p>
+          <Button asChild size="lg" className="mt-8 bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-bold text-base px-10 py-6 rounded-xl shadow-[0_0_30px_rgba(255,208,0,0.3)]">
+            <Link to="#planos">COMEÇAR AGORA <ArrowRight className="size-5 ml-2" /></Link>
+          </Button>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="border-t border-white/5 py-10">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 text-xs text-white/30 sm:flex-row">
+          <span className="font-display text-base font-bold">
+            <span className="text-[#FFD000]">Afilia</span>Hub
+          </span>
           <p>© {new Date().getFullYear()} AfiliaHub. Não afiliado oficialmente ao Mercado Livre.</p>
         </div>
       </footer>
