@@ -1,22 +1,14 @@
 import * as React from "react";
-import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { RouterProvider } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { sonner } from "@/components/ui/sonner";
 import { AuthSync } from "@/integrations/supabase/auth-attacher";
-import { routeTree } from "./routeTree.gen";
-import "@/styles.css";
+import { createRouter } from "../router";
+import "../styles.css";
 
 const queryClient = new QueryClient();
-
-const router = createRouter({
-  routeTree,
-  context: { queryClient },
-  defaultPreload: "viewport",
-  defaultPreloadStaleTime: 0,
-  wrapInRouter: false,
-  defaultStructuralSharing: true,
-});
+const router = createRouter();
 
 declare module "@tanstack/react-router" {
   interface Register {
@@ -37,5 +29,4 @@ export function App() {
   );
 }
 
-// Entry point for TanStack Start
 export default App;
