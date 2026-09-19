@@ -8,9 +8,9 @@ export const Route = createFileRoute("/_authenticated")({
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
 
-    // 2. Verifica assinatura ativa (plano pago)
     const userId = data.user.id;
 
+    // 2. Verifica assinatura ativa (plano pago)
     const { data: sub, error: subError } = await supabase
       .from("subscriptions")
       .select("id, status, plan_id, current_period_end")
@@ -22,22 +22,16 @@ export const Route = createFileRoute("/_authenticated")({
       console.error("[Auth] Erro ao verificar assinatura:", subError.message);
     }
 
-    // Se não tem assinatura ativa, redireciona para página de vendas
-    if (!sub) {
-      throw redirect({ to: "/" });
-    }
+    // Se não tem assinatura ativa, redireciona para escolha de plano
+    if (!sub) throw redirect({ to: "/auth?step=plans" });
 
     // Verifica expiração (planos mensais)
     if (sub.current_period_end) {
       const expiresAt = new Date(sub.current_period_end);
       const now = new Date();
-      if (expiresAt < now) {
-        // Assinatura mensal expirou — redireciona para renovação
-        throw redirect({ to: "/" });
-      }
+      if (expiresAt < now) throw redirect({ to: "/auth?step=plans" });
     }
 
-    // Se chegou até aqui: usuário autenticado + plano ativo + não expirou
     return { user: data.user, subscription: sub };
   },
   component: () => <Outlet />,
