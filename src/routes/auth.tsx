@@ -83,15 +83,15 @@ function AuthPage() {
   const [showPlans, setShowPlans] = React.useState(false);
   const [activating, setActivating] = React.useState<string | null>(null);
 
+  // Exibe tela de escolha de plano para usuário logado sem assinatura ativa.
+  // Novos usuários sem session vão para a aba de cadastro/login normalmente.
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("step") === "plans") {
-      if (!session) {
-        setMode("login");
-        setShowPlans(false);
-      } else {
+      if (session) {
         setShowPlans(true);
       }
+      // Se não tem session, mantém showPlans=false (login/signup tabs)
     }
   }, [session]);
 

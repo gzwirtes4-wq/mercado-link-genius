@@ -23,7 +23,8 @@ export const Route = createFileRoute("/_authenticated")({
       console.error("[Auth] Erro ao verificar assinatura:", subError.message);
     }
 
-    // Se não tem assinatura ativa, redireciona para escolha de plano
+    // Se não tem assinatura ativa, redireciona para escolha de plano.
+    // O /auth detecta que já tem session e mostra os planos.
     if (!sub) throw redirect({ to: "/auth?step=plans" });
 
     // Verifica expiração (planos mensais — lifetime não tem data)
