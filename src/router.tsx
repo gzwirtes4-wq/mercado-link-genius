@@ -1,42 +1,35 @@
-import { createRouter as createTanStackRouter } from "@tanstack/react-router";
-import { rootRoute } from "./routes/__root";
-import { IndexRoute } from "./routes/index";
-import { AuthRoute } from "./routes/auth";
-import { ResetPasswordRoute } from "./routes/reset-password";
-import { AuthenticatedRouteRoute } from "./routes/_authenticated/route";
-import { AdminRoute } from "./routes/_authenticated/admin";
-import { CatalogoRoute } from "./routes/_authenticated/catalogo";
-import { ChamadosRoute } from "./routes/_authenticated/chamados";
-import { ConfiguracoesRoute } from "./routes/_authenticated/configuracoes";
-import { DashboardRoute } from "./routes/_authenticated/dashboard";
-import { FinanceiroRoute } from "./routes/_authenticated/financeiro";
-import { IntegracoesRoute } from "./routes/_authenticated/integracoes";
-import { MeusProdutosRoute } from "./routes/_authenticated/meus-produtos";
-import { PedidosRoute } from "./routes/_authenticated/pedidos";
-import { ProdutosDivulgarRoute } from "./routes/_authenticated/produtos-divulgar";
+import { 
+  createRouter as createTanRouter,
+  Route,
+  rootRouteId,
+} from "@tanstack/react-router";
+import { routeTree } from "./routeTree.gen";
 
-const routeTree = rootRoute.addChildren([
-  IndexRoute,
-  AuthRoute,
-  ResetPasswordRoute,
-  AuthenticatedRouteRoute.addChildren([
-    AdminRoute,
-    CatalogoRoute,
-    ChamadosRoute,
-    ConfiguracoesRoute,
-    DashboardRoute,
-    FinanceiroRoute,
-    IntegracoesRoute,
-    MeusProdutosRoute,
-    PedidosRoute,
-    ProdutosDivulgarRoute,
-  ]),
-]);
+// Build the route tree with proper typing
+export const routeTreeWithContext = routeTree;
 
-export const router = createTanStackRouter({ routeTree });
+// Create the router with explicit root
+const router = createTanRouter({
+  routeTree: routeTreeWithContext,
+  defaultPreload: "viewport",
+  defaultPreloadStaleTime: 0,
+  context: {
+    auth: {
+      user: null,
+      profile: null,
+    },
+  },
+  beforeNavigate: (ctx) => {
+    // Optional: add navigation guards here
+  },
+  errorComponent: ({ error }) => {
+    console.error("Route error:", error);
+    return null;
+  },
+});
 
-declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router;
-  }
+export function createRouter() {
+  return router;
 }
+
+export { router };

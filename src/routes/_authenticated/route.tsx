@@ -11,19 +11,19 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async ({ context, cause }) => {
-    const { user, profile } = context.auth;
+    const { user } = context.auth ?? {};
 
     if (!user) {
       throw redirect({ to: "/auth", search: { redirect: window.location.href } });
     }
 
-    // Carrega a subscription para checar acesso
+    // Load subscription to check access
     const { data: subscription } = await supabase
       .from("subscriptions")
       .select("*")
       .eq("user_id", user.id)
       .eq("status", "active")
-      .single();
+      .maybeSingle();
 
     const hasAccess =
       subscription?.status === "active" &&
@@ -38,7 +38,7 @@ export const Route = createFileRoute("/_authenticated")({
       });
     }
 
-    return { user, profile, subscription };
+    return { user, subscription };
   },
   component: LayoutComponent,
   errorComponent: AuthError,
@@ -47,7 +47,9 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthError({ error }: { error: unknown }) {
   const navigate = useNavigate();
   const isRedirectError =
-    error && typeof error === "object" && "url" in error && (error as { url: string }).url;
+    error &&
+    typeof error === "object" &&
+    "url" in error;
 
   if (isRedirectError) {
     return null;
