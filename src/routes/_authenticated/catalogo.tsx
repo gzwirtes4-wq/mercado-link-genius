@@ -173,11 +173,39 @@ async function generateAffiliateLink(userId: string, product: MeliProduct): Prom
 
 // ─── Add to My Products ──────────────────────────────────────────────────────
 async function addToMyProducts(userId: string, product: MeliProduct): Promise<void> {
+  const { data: saved, error: upsertError } = await supabase
+    .from("products")
+    .upsert(
+      {
+        external_id: product.id,
+        title: product.title,
+        price: product.price,
+        original_price: product.original_price ?? null,
+        category: product.category_id ?? "Geral",
+        image_url: product.thumbnail,
+        permalink: product.permalink,
+        rating: product.reviews_rating ?? 0,
+        reviews_count: product.reviews_total ?? 0,
+        sold_quantity: product.sold_quantity ?? 0,
+        free_shipping: product.shipping?.free_shipping ?? false,
+        source: "mercadolivre",
+        active: true,
+      },
+      { onConflict: "external_id" },
+    )
+    .select("id")
+    .maybeSingle();
+
+  if (upsertError || !saved) {
+    toast.error("Não foi possível salvar o produto");
+    return;
+  }
+
   const { data: existing } = await supabase
     .from("user_products")
     .select("id")
     .eq("user_id", userId)
-    .eq("product_id", product.id)
+    .eq("product_id", saved.id)
     .maybeSingle();
 
   if (existing) {
@@ -185,32 +213,10 @@ async function addToMyProducts(userId: string, product: MeliProduct): Promise<vo
     return;
   }
 
-  // Upsert no products (sincroniza com catálogo local)
-  await supabase.from("products").upsert(
-    {
-      id: product.id,
-      external_id: product.id,
-      title: product.title,
-      price: product.price,
-      original_price: product.original_price,
-      category: product.category_id,
-      image_url: product.thumbnail,
-      permalink: product.permalink,
-      rating: product.reviews_rating,
-      reviews_count: product.reviews_total,
-      sold_quantity: product.sold_quantity,
-      free_shipping: product.shipping.free_shipping,
-      condition: product.condition,
-      source: "mercadolivre",
-      active: true,
-    },
-    { onConflict: "id" },
-  );
-
   await supabase.from("user_products").insert({
     user_id: userId,
-    product_id: product.id,
-    status: "saved",
+    product_id: saved.id,
+    status: "ativo",
   });
 }
 
