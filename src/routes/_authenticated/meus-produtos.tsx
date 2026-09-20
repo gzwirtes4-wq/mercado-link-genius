@@ -170,7 +170,7 @@ function MeusProdutos() {
 
       <ProductDialog
         product={selected}
-        link={selected ? linkFor(selected.id)?.url : undefined}
+        link={(selected ? linkFor(selected.id)?.url : undefined) ?? ""}
         open={!!selected}
         onOpenChange={(v) => !v && setSelected(null)}
       />

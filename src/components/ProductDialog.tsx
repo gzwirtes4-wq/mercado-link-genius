@@ -14,7 +14,7 @@ export function ProductDialog({
   onOpenChange,
 }: {
   product: Product | null;
-  link?: string;
+  link?: string | undefined;
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {

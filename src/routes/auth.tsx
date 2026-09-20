@@ -109,7 +109,10 @@ function AuthPage() {
       password: String(form.get("password")),
     });
     setBusy(false);
-    if (error) return toast.error("Não foi possível entrar", { description: error.message });
+    if (error) {
+      toast.error("Não foi possível entrar", { description: error.message });
+      return;
+    }
     toast.success("Bem-vindo de volta!");
     navigate({ to: "/dashboard" });
   };
@@ -127,7 +130,10 @@ function AuthPage() {
       },
     });
     setBusy(false);
-    if (error) return toast.error("Não foi possível criar a conta", { description: error.message });
+    if (error) {
+      toast.error("Não foi possível criar a conta", { description: error.message });
+      return;
+    }
     if (!data.session) {
       toast.success("Conta criada!", { description: "Confirme seu e-mail para acessar o painel." });
       setMode("login");
@@ -144,7 +150,10 @@ function AuthPage() {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     setBusy(false);
-    if (error) return toast.error("Não foi possível enviar o e-mail", { description: error.message });
+    if (error) {
+      toast.error("Não foi possível enviar o e-mail", { description: error.message });
+      return;
+    }
     toast.success("Enviamos um link de recuperação para o seu e-mail.");
     setRecovering(false);
   };
@@ -153,7 +162,10 @@ function AuthPage() {
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
     });
-    if (result.error) return toast.error("Falha ao entrar com Google");
+    if (result.error) {
+      toast.error("Falha ao entrar com Google");
+      return;
+    }
     if (result.redirected) return;
     navigate({ to: "/dashboard" });
   };
