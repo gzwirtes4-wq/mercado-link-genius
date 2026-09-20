@@ -1,35 +1,18 @@
-import { 
-  createRouter as createTanRouter,
-  Route,
-  rootRouteId,
-} from "@tanstack/react-router";
+import { QueryClient } from "@tanstack/react-query";
+import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 
-// Build the route tree with proper typing
-export const routeTreeWithContext = routeTree;
+export const getRouter = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
+  });
 
-// Create the router with explicit root
-const router = createTanRouter({
-  routeTree: routeTreeWithContext,
-  defaultPreload: "viewport",
-  defaultPreloadStaleTime: 0,
-  context: {
-    auth: {
-      user: null,
-      profile: null,
-    },
-  },
-  beforeNavigate: (ctx) => {
-    // Optional: add navigation guards here
-  },
-  errorComponent: ({ error }) => {
-    console.error("Route error:", error);
-    return null;
-  },
-});
+  const router = createRouter({
+    routeTree,
+    context: { queryClient },
+    scrollRestoration: true,
+    defaultPreloadStaleTime: 0,
+  });
 
-export function createRouter() {
   return router;
-}
-
-export { router };
+};
