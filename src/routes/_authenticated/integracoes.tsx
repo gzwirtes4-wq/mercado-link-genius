@@ -27,8 +27,8 @@ export const Route = createFileRoute("/_authenticated/integracoes")({
 //
 // Docs: https://developers.mercadolivre.com.br/pt_br/autenticacao-e-autorizacao
 //
-const MELI_CLIENT_ID = import.meta.env.VITE_MELI_CLIENT_ID as string | undefined;
-const MELI_REDIRECT_URI = import.meta.env.VITE_MELI_REDIRECT_URI as string | undefined;
+const MELI_CLIENT_ID = import.meta.env['VITE_MELI_CLIENT_ID'] as string | undefined;
+const MELI_REDIRECT_URI = import.meta.env['VITE_MELI_REDIRECT_URI'] as string | undefined;
 const MELI_AUTH_URL = "https://auth.mercadolivre.com.br/authorization";
 const MELI_TOKEN_URL = "https://api.mercadolivre.com/oauth/token";
 
@@ -75,7 +75,7 @@ async function exchangeMeliCode(code: string): Promise<{ access_token: string; u
       body: new URLSearchParams({
         grant_type: "authorization_code",
         client_id: MELI_CLIENT_ID,
-        client_secret: import.meta.env.VITE_MELI_CLIENT_SECRET ?? "",
+        client_secret: import.meta.env['VITE_MELI_CLIENT_SECRET'] ?? "",
         code,
         redirect_uri: MELI_REDIRECT_URI,
       }),

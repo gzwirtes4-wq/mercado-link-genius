@@ -37,7 +37,6 @@ import {
   fetchMyProducts,
   fetchIntegration,
   fetchMyLinks,
-  fetchProductById,
 } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -58,7 +57,7 @@ export const Route = createFileRoute("/_authenticated/catalogo")({
 // Docs: https://developers.mercadolivre.com.br/pt_br/gerenciar-seu-aplicativo
 // O token de aplicativo permite buscar produtos públicos do catálogo.
 //
-const MELI_ACCESS_TOKEN = import.meta.env.VITE_MELI_ACCESS_TOKEN as string | undefined;
+const MELI_ACCESS_TOKEN = import.meta.env['VITE_MELI_ACCESS_TOKEN'] as string | undefined;
 const MELI_API_BASE = "https://api.mercadolivre.com.br";
 
 interface MeliProduct {
@@ -602,7 +601,7 @@ function CatalogoPage() {
       )}
 
       {/* Product Dialog */}
-      <ProductDialog product={selectedProduct} open={!!selectedProduct} onOpenChange={(o) => !o && setSelectedProduct(null)} />
+      <ProductDialog product={selectedProduct as never} open={!!selectedProduct} onOpenChange={(o) => !o && setSelectedProduct(null)} />
     </AppLayout>
   );
 }

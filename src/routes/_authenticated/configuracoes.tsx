@@ -36,7 +36,10 @@ function Configuracoes() {
       .update({ full_name: String(form.get("full_name")), phone: String(form.get("phone")) })
       .eq("id", user?.id ?? "");
     setBusy(false);
-    if (error) return toast.error("Não foi possível salvar", { description: error.message });
+    if (error) {
+      toast.error("Não foi possível salvar", { description: error.message });
+      return;
+    }
     await refreshProfile();
     toast.success("Perfil atualizado");
   };
@@ -51,7 +54,10 @@ function Configuracoes() {
       current_password: String(form.get("current_password")),
     });
     setBusy(false);
-    if (error) return toast.error("Não foi possível alterar a senha", { description: error.message });
+    if (error) {
+      toast.error("Não foi possível alterar a senha", { description: error.message });
+      return;
+    }
     toast.success("Senha alterada");
   };
 
