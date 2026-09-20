@@ -30,7 +30,8 @@ function ResetPassword() {
     const form = new FormData(e.currentTarget);
     const password = String(form.get("password"));
     if (password !== String(form.get("confirm"))) {
-      return toast.error("As senhas não coincidem");
+      toast.error("As senhas não coincidem");
+      return;
     }
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ password });
