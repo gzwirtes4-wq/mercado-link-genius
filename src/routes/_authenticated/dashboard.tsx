@@ -63,9 +63,9 @@ function StatCard({
   icon: typeof Package;
   label: string;
   value: string;
-  hint?: string;
-  trend?: string;
-  isHighlight?: boolean;
+  hint?: string | undefined;
+  trend?: string | undefined;
+  isHighlight?: boolean | undefined;
 }) {
   return (
     <div className={`surface group relative overflow-hidden p-5 transition-all duration-300 hover:shadow-[var(--shadow-lift)] ${isHighlight ? 'border-primary/30' : ''}`}>

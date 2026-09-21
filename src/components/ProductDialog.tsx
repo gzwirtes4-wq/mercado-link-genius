@@ -82,7 +82,7 @@ export function ProductDialog({
           </TabsContent>
 
           <TabsContent value="anuncio" className="mt-5">
-            <AdGenerator product={product} link={link} />
+            <AdGenerator product={product} {...(link ? { link } : {})} />
           </TabsContent>
         </Tabs>
       </DialogContent>

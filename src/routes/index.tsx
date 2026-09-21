@@ -221,7 +221,7 @@ function Landing() {
             {[
               { icon: ShoppingCart, title: "Catálogo de Produtos", text: "Busca e filtros avançados para achar produtos rapidamente no Mercado Livre." },
               { icon: Zap, title: "Integração Mercado Livre", text: "Conexão pelo fluxo oficial OAuth. Nunca pedimos sua senha." },
-              { icon: Link, title: "Gerador de Links", text: "Links organizados por produto, com contagem de cliques." },
+              { icon: Link2, title: "Gerador de Links", text: "Links organizados por produto, com contagem de cliques." },
               { icon: TrendingUp, title: "Criador de Anúncios", text: "Modelos de copy prontos para WhatsApp, Instagram, Telegram e Stories." },
               { icon: CheckCircle2, title: "Meus Produtos", text: "Sua seleção salva, com status e ações rápidas." },
               { icon: Users, title: "Analytics", text: "Acompanhe cliques, pedidos e comissões disponíveis pela integração." },
