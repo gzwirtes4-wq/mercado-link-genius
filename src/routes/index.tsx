@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Check,
   CheckCircle2,
+  Link2,
   ShieldCheck,
   ShoppingCart,
   TrendingUp,
