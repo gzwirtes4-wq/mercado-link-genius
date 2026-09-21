@@ -170,6 +170,33 @@ function AuthPage() {
     navigate({ to: "/dashboard" });
   };
 
+  const handleDemo = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL ?? ""}/functions/v1/create-demo-user`,
+        {
+          headers: {
+            Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ""}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+      const data = await res.json();
+      if (data.session) {
+        await supabase.auth.setSession(data.session as import("@supabase/supabase-js").Session);
+        toast.success("Demo criado! Bem-vindo ao painel.");
+        navigate({ to: "/dashboard" });
+      } else {
+        toast.error("Não foi possível criar demo. Verifique a integração.");
+      }
+    } catch {
+      toast.error("Erro ao criar usuário demo.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleActivatePlan = async (slug: string) => {
     if (!session?.user) {
       setMode("login");
