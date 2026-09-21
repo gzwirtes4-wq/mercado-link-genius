@@ -16,63 +16,46 @@ Deno.serve(async (req: Request) => {
 
   const DEMO_EMAIL = "ryan123@gmail.com";
   const DEMO_PASSWORD = "ryan123";
+  const DEMO_NAME = "Ryan Admin";
 
-  // Check if user already exists
+  // 1. Check if user already exists by email
   const { data: existing } = await admin
     .from("profiles")
     .select("id, email")
     .eq("email", DEMO_EMAIL)
     .maybeSingle();
 
+  let userId: string;
+
   if (existing) {
-    // Update existing user session
-    const { data: freshSession } = await admin.auth.signInWithPassword({
+    userId = existing.id;
+  } else {
+    // 2. Create user via Admin API
+    const { data: authUser, error: authError } = await admin.auth.admin.createUser({
       email: DEMO_EMAIL,
       password: DEMO_PASSWORD,
+      email_confirm: true,
+      user_metadata: { full_name: DEMO_NAME, role: "admin" },
     });
-    
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: "Usuário já existe. Faça login com as credenciais fornecidas.",
-        email: DEMO_EMAIL,
-        session: freshSession?.session ?? null,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+
+    if (authError || !authUser.user) {
+      return new Response(
+        JSON.stringify({ error: authError?.message ?? "Falha ao criar usuário" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    userId = authUser.user.id;
   }
 
-  // Create user via admin API
-  const { data: authUser, error: authError } = await admin.auth.admin.createUser({
-    email: DEMO_EMAIL,
-    password: DEMO_PASSWORD,
-    email_confirm: true,
-    user_metadata: { full_name: "Ryan Admin" },
-  });
-
-  if (authError || !authUser.user) {
-    return new Response(
-      JSON.stringify({ error: authError?.message ?? "Falha ao criar usuário" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  }
-
-  const userId = authUser.user.id;
-
-  // Create profile
+  // 3. Upsert profile with admin role
   await admin.from("profiles").upsert({
     id: userId,
-    full_name: "Ryan Admin",
+    full_name: DEMO_NAME,
     email: DEMO_EMAIL,
+    role: "admin",
   }, { onConflict: "id" });
 
-  // Assign admin role
-  await admin.from("user_roles").upsert({
-    user_id: userId,
-    role: "admin",
-  }, { onConflict: "user_id" });
-
-  // Get or create lifetime plan
+  // 4. Ensure lifetime plan exists
   let { data: plan } = await admin
     .from("plans")
     .select("id")
@@ -83,28 +66,31 @@ Deno.serve(async (req: Request) => {
     const { data: newPlan } = await admin.from("plans").insert({
       name: "Lifetime",
       slug: "lifetime",
-      description: "Acesso vitalício — pagamento único",
+      description: "Acesso vitalicio - pagamento unico",
       price_cents: 25599,
-      features: ["Catálogo completo", "Produtos ilimitados", "Gerador de links", "Criador de anúncios", "Dashboard", "Analytics", "Pedidos e financeiro", "Suporte prioritário"],
+      features: ["Catalogo completo", "Produtos ilimitados", "Gerador de links", "Criador de anuncios", "Dashboard", "Analytics", "Pedidos e financeiro", "Suporte prioritario"],
       highlight: true,
       sort_order: 2,
     }).select("id").single();
     plan = newPlan;
   }
 
+  // 5. Upsert subscription with lifetime (no expiry, status=active)
   if (plan) {
     await admin.from("subscriptions").upsert({
       user_id: userId,
       plan_id: plan.id,
       status: "active",
-      current_period_end: null,
+      current_period_end: "2099-12-31T23:59:59.000Z",
     }, { onConflict: "user_id" });
   }
 
-  // Sign in to get session
-  const { data: freshSession } = await admin.auth.signInWithPassword({
-    email: DEMO_EMAIL,
-    password: DEMO_PASSWORD,
+  // 6. Upsert admin role in user_roles if table exists
+  await admin.from("user_roles").upsert({
+    user_id: userId,
+    role: "admin",
+  }, { onConflict: "user_id" }).catch(() => {
+    // user_roles table may not exist - ignore error
   });
 
   return new Response(
@@ -114,8 +100,8 @@ Deno.serve(async (req: Request) => {
       password: DEMO_PASSWORD,
       role: "admin",
       plan: "lifetime",
-      message: "Conta criada com sucesso! Use as credenciais para fazer login.",
-      session: freshSession?.session ?? null,
+      user_id: userId,
+      message: "Conta criada/atualizada. Use ryan123@gmail.com / ryan123 para fazer login.",
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
