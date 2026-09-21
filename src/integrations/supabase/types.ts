@@ -97,8 +97,12 @@ export type Database = {
           created_at: string
           id: string
           last_error: string | null
+          ml_user_id: string | null
+          nickname: string | null
           provider: string
+          scope: string | null
           status: string
+          token_expires_at: string | null
           updated_at: string
           user_id: string
         }
@@ -108,8 +112,12 @@ export type Database = {
           created_at?: string
           id?: string
           last_error?: string | null
+          ml_user_id?: string | null
+          nickname?: string | null
           provider?: string
+          scope?: string | null
           status?: string
+          token_expires_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -119,8 +127,39 @@ export type Database = {
           created_at?: string
           id?: string
           last_error?: string | null
+          ml_user_id?: string | null
+          nickname?: string | null
           provider?: string
+          scope?: string | null
           status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      meli_tokens: {
+        Row: {
+          access_token: string
+          created_at: string
+          expires_at: string
+          refresh_token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          expires_at: string
+          refresh_token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          expires_at?: string
+          refresh_token?: string
           updated_at?: string
           user_id?: string
         }
@@ -265,8 +304,11 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          is_active: boolean
+          notes: string | null
           phone: string | null
           updated_at: string
+          validated_at: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -274,8 +316,11 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          is_active?: boolean
+          notes?: string | null
           phone?: string | null
           updated_at?: string
+          validated_at?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -283,8 +328,11 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          is_active?: boolean
+          notes?: string | null
           phone?: string | null
           updated_at?: string
+          validated_at?: string | null
         }
         Relationships: []
       }
