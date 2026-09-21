@@ -16,7 +16,7 @@ Deno.serve(async (req: Request) => {
 
   const DEMO_EMAIL = "ryan123@gmail.com";
   const DEMO_PASSWORD = "ryan123";
-  const DEMO_NAME = "Ryan Admin";
+  const DEMO_NAME = "Admin Teste";
 
   // 1. Check if user already exists by email
   const { data: existing } = await admin
@@ -35,7 +35,7 @@ Deno.serve(async (req: Request) => {
       email: DEMO_EMAIL,
       password: DEMO_PASSWORD,
       email_confirm: true,
-      user_metadata: { full_name: DEMO_NAME, role: "admin" },
+      user_metadata: { full_name: DEMO_NAME, role: "admin", is_admin: true, is_test_account: true },
     });
 
     if (authError || !authUser.user) {
@@ -53,6 +53,8 @@ Deno.serve(async (req: Request) => {
     full_name: DEMO_NAME,
     email: DEMO_EMAIL,
     role: "admin",
+    is_admin: true,
+    is_test_account: true,
   }, { onConflict: "id" });
 
   // 4. Ensure lifetime plan exists
@@ -81,7 +83,8 @@ Deno.serve(async (req: Request) => {
       user_id: userId,
       plan_id: plan.id,
       status: "active",
-      current_period_end: "2099-12-31T23:59:59.000Z",
+      current_period_end: null,
+      cancel_at_period_end: false,
     }, { onConflict: "user_id" });
   }
 
@@ -101,7 +104,7 @@ Deno.serve(async (req: Request) => {
       role: "admin",
       plan: "lifetime",
       user_id: userId,
-      message: "Conta criada/atualizada. Use ryan123@gmail.com / ryan123 para fazer login.",
+      message: "Conta criada/atualizada com sucesso!\n\nEmail: ryan123@gmail.com\nSenha: ryan123\nPlano: Lifetime (vitalicio)\nStatus: Ativo\n\nFaça login em /auth com essas credenciais.",
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
