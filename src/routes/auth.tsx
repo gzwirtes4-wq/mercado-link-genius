@@ -13,6 +13,9 @@ import { ArrowRight, Check, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
+  validateSearch: (search: Record<string, unknown>) => ({
+    step: typeof search['step'] === "string" ? (search['step'] as string) : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Entrar ou criar conta | Mercado Ecommerce" },
