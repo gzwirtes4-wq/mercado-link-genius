@@ -1,74 +1,61 @@
 "use client";
 
 import * as React from "react";
-import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const Route = createFileRoute("/_authenticated")({
-  beforeLoad: async ({ context, cause }) => {
-    const { user } = context.auth ?? {};
-
-    if (!user) {
-      throw redirect({ to: "/auth", search: { redirect: window.location.href } });
-    }
-
-    // Load subscription to check access
-    const { data: subscription } = await supabase
-      .from("subscriptions")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .maybeSingle();
-
-    const hasAccess =
-      subscription?.status === "active" &&
-      (subscription?.plan_id === "lifetime" ||
-        (subscription?.current_period_end &&
-          new Date(subscription.current_period_end) > new Date()));
-
-    if (!hasAccess) {
-      throw redirect({
-        to: "/auth",
-        search: { step: "plans", reason: "no_subscription" },
-      });
-    }
-
-    return { user, subscription };
-  },
-  component: LayoutComponent,
-  errorComponent: AuthError,
+  ssr: false,
+  component: AuthenticatedLayout,
 });
 
-function AuthError({ error }: { error: unknown }) {
-  const navigate = useNavigate();
-  const isRedirectError =
-    error &&
-    typeof error === "object" &&
-    "url" in error;
-
-  if (isRedirectError) {
-    return null;
-  }
-
+function Splash() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#0A0A0A] p-6">
-      <Alert variant="destructive" className="max-w-md border-red-900 bg-red-950">
-        <AlertTriangle className="size-4" />
-        <AlertTitle>Erro de autenticação</AlertTitle>
-        <AlertDescription>
-          Não foi possível verificar seu acesso. Por favor, faça login novamente.
-        </AlertDescription>
-      </Alert>
-      <Button onClick={() => navigate({ to: "/auth" })}>Voltar ao login</Button>
+    <div className="grid min-h-screen place-items-center bg-background">
+      <Loader2 className="size-6 animate-spin text-muted-foreground" />
     </div>
   );
 }
 
-function LayoutComponent({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+function AuthenticatedLayout() {
+  const navigate = useNavigate();
+  const { session, loading, isAdmin } = useAuth();
+  const userId = session?.user?.id;
+
+  const access = useQuery({
+    queryKey: ["access", userId],
+    enabled: Boolean(userId),
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("subscriptions")
+        .select("status, current_period_end, plans(slug)")
+        .eq("user_id", userId!)
+        .maybeSingle();
+      if (!data || data.status !== "active") return false;
+      const slug = (data.plans as { slug: string } | null)?.slug;
+      if (slug === "lifetime") return true;
+      if (!data.current_period_end) return true;
+      return new Date(data.current_period_end) > new Date();
+    },
+  });
+
+  React.useEffect(() => {
+    if (!loading && !session) {
+      navigate({ to: "/auth", replace: true });
+    }
+  }, [loading, session, navigate]);
+
+  React.useEffect(() => {
+    if (!isAdmin && access.isSuccess && access.data === false) {
+      navigate({ to: "/auth", search: { step: "plans" }, replace: true });
+    }
+  }, [isAdmin, access.isSuccess, access.data, navigate]);
+
+  if (loading || !session) return <Splash />;
+  if (!isAdmin && (access.isLoading || access.data === false)) return <Splash />;
+
+  return <Outlet />;
 }

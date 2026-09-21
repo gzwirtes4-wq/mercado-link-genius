@@ -13,6 +13,9 @@ import { ArrowRight, Check, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
+  validateSearch: (search: Record<string, unknown>) => ({
+    step: typeof search['step'] === "string" ? (search['step'] as string) : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Entrar ou criar conta | Mercado Ecommerce" },
@@ -174,7 +177,7 @@ function AuthPage() {
     setBusy(true);
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL ?? ""}/functions/v1/create-demo-user`,
+        `${import.meta.env['VITE_SUPABASE_URL'] ?? ""}/functions/v1/create-demo-user`,
         {
           headers: {
             Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ""}`,
