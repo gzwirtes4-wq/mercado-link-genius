@@ -63,7 +63,7 @@ const STEPS = [
 const PLANS = [
   {
     name: "1 Mês",
-    price: "R$ 150,99",
+    price: "R$ 160,99",
     description: "Acesso à plataforma durante 30 dias.",
     features: [
       "Catálogo completo de produtos",
@@ -79,7 +79,7 @@ const PLANS = [
   },
   {
     name: "Lifetime",
-    price: "R$ 255,99",
+    price: "R$ 295,99",
     description: "Acesso vitalício à plataforma. Pagamento único, sem mensalidade.",
     features: [
       "Tudo do plano 1 Mês",

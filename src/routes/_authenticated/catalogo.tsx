@@ -4,25 +4,37 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Search,
-  SlidersHorizontal,
   ExternalLink,
   ShoppingBag,
   Star,
   Truck,
-  Plus,
   Copy,
   Check,
   Loader2,
-  ShoppingCart,
   AlertCircle,
+  DollarSign,
+  TrendingUp,
+  Tag,
+  X,
+  Plus,
+  Trash2,
+  Image,
+  Settings2,
+  Globe,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ProductCard } from "@/components/ProductCard";
-import { ProductDialog } from "@/components/ProductDialog";
 import { EmptyState } from "@/components/EmptyState";
+import { AdGenerator } from "@/components/AdGenerator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -32,31 +44,20 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { brl } from "@/lib/format";
-import {
-  fetchProducts,
-  fetchMyProducts,
-  fetchIntegration,
-  fetchMyLinks,
-} from "@/lib/queries";
+import { fetchIntegration } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/catalogo")({
   head: () => ({
     meta: [
-      { title: "Catálogo | AfiliaHub" },
-      { name: "description", content: "Explore o catálogo de produtos do Mercado Livre para divulgar." },
+      { title: "Catálogo | Mercado Ecommerce" },
+      { name: "description", content: "Catálogo de produtos reais para venda sem estoque. Encontre fornecedores, calcule sua margem e comece a lucrar." },
     ],
   }),
   component: CatalogoPage,
 });
 
-// ─── Mercado Livre API Config ────────────────────────────────────────────────
-// Configure no ambiente:
-// VITE_MELI_ACCESS_TOKEN=seu_access_token_de_aplicativo
-//
-// Docs: https://developers.mercadolivre.com.br/pt_br/gerenciar-seu-aplicativo
-// O token de aplicativo permite buscar produtos públicos do catálogo.
-//
+// ─── Mercado Livre API ──────────────────────────────────────────────────────
 const MELI_ACCESS_TOKEN = import.meta.env['VITE_MELI_ACCESS_TOKEN'] as string | undefined;
 const MELI_API_BASE = "https://api.mercadolivre.com.br";
 
@@ -66,6 +67,7 @@ interface MeliProduct {
   price: number;
   currency_id: string;
   thumbnail: string;
+  pictures: { url: string }[];
   permalink: string;
   category_id: string;
   sold_quantity: number;
@@ -74,45 +76,44 @@ interface MeliProduct {
   shipping: { free_shipping: boolean };
   condition: string;
   original_price: number | null;
+  seller: { id: number; nickname: string; seller_reputation: { level_id: string } };
+  catalog_product_id: string | null;
 }
 
 interface MeliCategory {
   id: string;
   name: string;
-  path_from_root: { id: string; name: string }[];
 }
 
-// ─── Fetch Categories ────────────────────────────────────────────────────────
+const CATEGORIAS_POPULARES: { id: string; name: string; icon: string }[] = [
+  { id: "MLB1055", name: "Celulares e Telefones", icon: "📱" },
+  { id: "MLB1648", name: "Informática", icon: "💻" },
+  { id: "MLB1000", name: "Eletrônicos", icon: "🎧" },
+  { id: "MLB5726", name: "Acessórios de Moda", icon: "👜" },
+  { id: "MLB1276", name: "Games", icon: "🎮" },
+  { id: "MLB1574", name: "Esporte e Fitness", icon: "🏋️" },
+  { id: "MLB1384", name: "Beleza e Cuidado", icon: "💄" },
+  { id: "MLB1500", name: "Casa e Móveis", icon: "🏠" },
+  { id: "MLB1744", name: "Ferramentas", icon: "🔧" },
+  { id: "MLB1642", name: "Eletrodomésticos", icon: "🍳" },
+  { id: "MLB1430", name: "Moda", icon: "👕" },
+  { id: "MLB1132", name: "Instrumentos Musicais", icon: "🎸" },
+];
+
 async function fetchMeliCategories(): Promise<{ id: string; name: string }[]> {
-  const popularCategories = [
-    { id: "MLB1055", name: "Celulares e Telefones" },
-    { id: "MLB1648", name: "Computadores" },
-    { id: "MLB1000", name: "Eletrônicos" },
-    { id: "MLB5726", name: "Acessórios de Moda" },
-    { id: "MLB1276", name: "Games" },
-    { id: "MLB1574", name: "Esporte e Fitness" },
-    { id: "MLB1384", name: "Beleza e Cuidado" },
-    { id: "MLB1500", name: "Casa e Móveis" },
-    { id: "MLB1744", name: "Ferramentas" },
-    { id: "MLB1039", name: "Música e Instrumentos" },
-  ];
-
-  if (!MELI_ACCESS_TOKEN) return popularCategories;
-
+  if (!MELI_ACCESS_TOKEN) return CATEGORIAS_POPULARES;
   try {
-    const res = await fetch(
-      `${MELI_API_BASE}/sites/MLB/categories`,
-      { headers: { Authorization: `Bearer ${MELI_ACCESS_TOKEN}` } },
-    );
-    if (!res.ok) return popularCategories;
+    const res = await fetch(`${MELI_API_BASE}/sites/MLB/categories`, {
+      headers: { Authorization: `Bearer ${MELI_ACCESS_TOKEN}` },
+    });
+    if (!res.ok) return CATEGORIAS_POPULARES;
     const categories: { id: string; name: string }[] = await res.json();
     return categories.slice(0, 20);
   } catch {
-    return popularCategories;
+    return CATEGORIAS_POPULARES;
   }
 }
 
-// ─── Fetch Meli Products ─────────────────────────────────────────────────────
 async function fetchMeliProducts(params: {
   query: string;
   category: string;
@@ -144,97 +145,455 @@ async function fetchMeliProducts(params: {
   }
 }
 
-// ─── Generate / Save Affiliate Link ─────────────────────────────────────────
-async function generateAffiliateLink(userId: string, product: MeliProduct): Promise<string> {
-  const { data: existing } = await supabase
-    .from("affiliate_links")
-    .select("url, id")
-    .eq("user_id", userId)
-    .eq("product_id", product.id)
-    .maybeSingle();
-
-  if (existing) return existing.url;
-
-  // Usa o permalink oficial do Mercado Livre — em produção, substitua pelo link
-  // de afiliado real através da API do programa de associados do Mercado Livre.
-  const linkUrl = product.permalink;
-
-  const shortCode = Math.random().toString(36).slice(2, 8);
-  await supabase.from("affiliate_links").insert({
-    user_id: userId,
-    product_id: product.id,
-    url: linkUrl,
-    short_code: shortCode,
-    clicks: 0,
-  });
-  return linkUrl;
+async function fetchMeliProductDetail(id: string): Promise<MeliProduct | null> {
+  if (!MELI_ACCESS_TOKEN) return null;
+  try {
+    const res = await fetch(`${MELI_API_BASE}/items/${id}`, {
+      headers: { Authorization: `Bearer ${MELI_ACCESS_TOKEN}` },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
-// ─── Add to My Products ──────────────────────────────────────────────────────
-async function addToMyProducts(userId: string, product: MeliProduct): Promise<void> {
-  const { data: saved, error: upsertError } = await supabase
-    .from("products")
-    .upsert(
-      {
-        external_id: product.id,
-        title: product.title,
-        price: product.price,
-        original_price: product.original_price ?? null,
-        category: product.category_id ?? "Geral",
-        image_url: product.thumbnail,
-        permalink: product.permalink,
-        rating: product.reviews_rating ?? 0,
-        reviews_count: product.reviews_total ?? 0,
-        sold_quantity: product.sold_quantity ?? 0,
-        free_shipping: product.shipping?.free_shipping ?? false,
-        source: "mercadolivre",
-        active: true,
-      },
-      { onConflict: "external_id" },
-    )
-    .select("id")
-    .maybeSingle();
+// ─── Lucro Estimado ─────────────────────────────────────────────────────────
+const TAXA_ML = 0.11; // ~11% taxa Mercado Livre
+const TAXA_PAGAMENTO = 0.039; // ~3.9% taxa pagamento
 
-  if (upsertError || !saved) {
-    toast.error("Não foi possível salvar o produto");
-    return;
-  }
-
-  const { data: existing } = await supabase
-    .from("user_products")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("product_id", saved.id)
-    .maybeSingle();
-
-  if (existing) {
-    toast.info("Este produto já está na sua lista");
-    return;
-  }
-
-  await supabase.from("user_products").insert({
-    user_id: userId,
-    product_id: saved.id,
-    status: "ativo",
-  });
+function calcularLucro(precoFornecedor: number, margem: number, taxaFrete: number = 0): {
+  precoVenda: number;
+  lucroBruto: number;
+  lucroLiquido: number;
+  taxaTotal: number;
+} {
+  const precoVenda = precoFornecedor * (1 + margem / 100);
+  const taxaML = precoVenda * TAXA_ML;
+  const taxaPgto = precoVenda * TAXA_PAGAMENTO;
+  const taxaTotal = taxaML + taxaPgto + taxaFrete;
+  const lucroBruto = precoVenda - precoFornecedor;
+  const lucroLiquido = precoVenda - precoFornecedor - taxaTotal;
+  return { precoVenda, lucroBruto, lucroLiquido, taxaTotal };
 }
 
-// ─── Local Product type ──────────────────────────────────────────────────────
-type LocalProduct = {
+// ─── Types ───────────────────────────────────────────────────────────────────
+type CatalogProduct = {
   id: string;
   title: string;
   price: number;
   original_price: number | null;
-  image_url: string | null;
-  category: string;
-  permalink: string | null;
-  rating: number;
-  reviews_count: number;
+  thumbnail: string;
+  pictures: { url: string }[];
+  permalink: string;
+  category_id: string;
+  category_name: string;
   sold_quantity: number;
+  reviews_rating: number;
+  condition: string;
   free_shipping: boolean;
+  seller_nickname: string;
+  seller_level: string;
   source: string;
-  is_new: boolean;
 };
+
+type SavedProduct = {
+  id: string;
+  product_id: string;
+  margin: number;
+  custom_price: number | null;
+  created_at: string;
+  products: { id: string; title: string; price: number; image_url: string | null; permalink: string | null; category: string; source: string } | null;
+};
+
+// ─── Product Card ─────────────────────────────────────────────────────────────
+function ProductCard({
+  product,
+  onDetails,
+}: {
+  product: CatalogProduct;
+  onDetails: (p: CatalogProduct) => void;
+}) {
+  return (
+    <article className="surface group flex flex-col overflow-hidden transition-all duration-300 hover:shadow-[var(--shadow-lift)]">
+      <button
+        type="button"
+        onClick={() => onDetails(product)}
+        className="relative aspect-[4/3] w-full overflow-hidden bg-muted cursor-pointer"
+      >
+        <img
+          src={product.thumbnail?.replace("-I", "-O") || product.pictures?.[0]?.url?.replace("-I", "-O") || ""}
+          alt={product.title}
+          loading="lazy"
+          className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+        {product.free_shipping && (
+          <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase text-primary-foreground">
+            <Truck className="size-3" /> Frete grátis
+          </div>
+        )}
+        {product.condition === "new" && (
+          <div className="absolute top-2 right-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-black">
+            Novo
+          </div>
+        )}
+      </button>
+
+      <div className="flex flex-1 flex-col p-4 space-y-2">
+        <div className="flex items-start justify-between gap-1">
+          <p className="line-clamp-2 text-left text-sm font-semibold leading-tight cursor-pointer hover:text-primary" onClick={() => onDetails(product)}>
+            {product.title}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {product.seller_nickname && (
+            <Badge variant="secondary" className="text-[10px] gap-1">
+              <Globe className="size-2.5" /> {product.seller_nickname}
+            </Badge>
+          )}
+          <span>{product.sold_quantity.toLocaleString("pt-BR")} vendidos</span>
+        </div>
+
+        <div className="flex items-baseline gap-2">
+          <span className="font-display text-xl font-bold text-white">{brl(product.price)}</span>
+          {product.original_price && product.original_price > product.price && (
+            <span className="text-xs text-muted-foreground line-through">{brl(product.original_price)}</span>
+          )}
+        </div>
+
+        <div className="mt-auto flex flex-col gap-2 pt-1">
+          <Button
+            size="sm"
+            className="w-full bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold text-xs"
+            onClick={() => onDetails(product)}
+          >
+            <TrendingUp className="size-3 mr-1" /> Calcular Lucro
+          </Button>
+          {product.permalink && (
+            <Button size="sm" variant="outline" className="w-full border-white/10 text-white hover:bg-white/10 hover:text-white text-xs" asChild>
+              <a href={product.permalink} target="_blank" rel="noreferrer">
+                <ExternalLink className="size-3 mr-1" /> Ver fornecedor
+              </a>
+            </Button>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+// ─── Product Detail Modal ─────────────────────────────────────────────────────
+function ProductDetailModal({
+  product,
+  open,
+  onOpenChange,
+}: {
+  product: CatalogProduct | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const { user } = useAuth();
+  const uid = user?.id ?? "";
+  const queryClient = useQueryClient();
+  const [margin, setMargin] = React.useState(30);
+  const [customPrice, setCustomPrice] = React.useState<string>("");
+  const [saved, setSaved] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
+
+  const { data: integration } = useQuery({
+    queryKey: ["integration", uid],
+    queryFn: () => fetchIntegration(uid),
+    enabled: !!uid,
+  });
+
+  React.useEffect(() => {
+    if (product) {
+      setMargin(30);
+      setCustomPrice("");
+      setSaved(false);
+    }
+  }, [product?.id]);
+
+  if (!product) return null;
+
+  const precoFornecedor = product.price;
+  const useCustom = customPrice !== "" && !isNaN(Number(customPrice)) && Number(customPrice) > 0;
+  const precoVendaCalc = useCustom ? Number(customPrice) : (precoFornecedor * (1 + margin / 100));
+  const taxaFrete = product.free_shipping ? 0 : precoVendaCalc * 0.05;
+  const resultado = calcularLucro(precoFornecedor, useCustom ? ((precoVendaCalc / precoFornecedor - 1) * 100) : margin, taxaFrete);
+
+  const handleSalvar = async () => {
+    if (!uid) return;
+    setSaving(true);
+    try {
+      // Salva na tabela products
+      const { data: prod, error: prodErr } = await supabase
+        .from("products")
+        .upsert({
+          external_id: product.id,
+          title: product.title,
+          price: product.price,
+          category: product.category_name || product.category_id,
+          image_url: product.thumbnail || product.pictures?.[0]?.url || null,
+          permalink: product.permalink,
+          rating: product.reviews_rating ?? 0,
+          sold_quantity: product.sold_quantity ?? 0,
+          free_shipping: product.free_shipping,
+          source: "mercadolivre",
+          active: true,
+        }, { onConflict: "external_id" })
+        .select("id")
+        .maybeSingle();
+
+      if (prodErr || !prod) { toast.error("Erro ao salvar produto"); setSaving(false); return; }
+
+      // Salva como favorito do usuário com margem
+      const { error: favErr } = await supabase
+        .from("user_products")
+        .upsert({
+          user_id: uid,
+          product_id: prod.id,
+          status: "favorito",
+        }, { onConflict: "user_id,product_id" });
+
+      if (favErr) { toast.error("Erro ao favoritar"); setSaving(false); return; }
+
+      // Salva configuração de margem
+      await supabase.from("affiliate_links").upsert({
+        user_id: uid,
+        product_id: prod.id,
+        url: product.permalink,
+        short_code: Math.random().toString(36).slice(2, 8),
+        clicks: 0,
+      }, { onConflict: "user_id,product_id" });
+
+      setSaved(true);
+      queryClient.invalidateQueries({ queryKey: ["my-products", uid] });
+      toast.success("Produto salvo com sua margem de lucro!");
+    } catch {
+      toast.error("Erro ao salvar produto");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCopiarLink = async () => {
+    const linkTexto = `${product.title}\n${brl(precoVendaCalc)} — Compre aqui: ${product.permalink}`;
+    await navigator.clipboard.writeText(linkTexto);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast.success("Texto do anúncio copiado!");
+  };
+
+  const mlConnected = integration?.status === "connected";
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="text-left text-base leading-snug">{product.title}</DialogTitle>
+          <DialogDescription className="text-left">
+            Fonte: Mercado Livre • {product.seller_nickname || "Vendedor"} • {product.sold_quantity.toLocaleString("pt-BR")} vendidos
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="mt-2 space-y-6">
+          {/* Imagem */}
+          {(product.thumbnail || product.pictures?.length) && (
+            <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-muted">
+              <img
+                src={(product.pictures?.[0]?.url || product.thumbnail)?.replace("-I", "-O")}
+                alt={product.title}
+                className="size-full object-contain"
+              />
+            </div>
+          )}
+
+          {/* Preço do fornecedor */}
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Preço do fornecedor (ML)</p>
+                <p className="font-display text-2xl font-bold text-white">{brl(product.price)}</p>
+              </div>
+              <div className="text-right">
+                {product.free_shipping ? (
+                  <Badge className="bg-success/10 text-success border-success/20 gap-1">
+                    <Truck className="size-3" /> Frete grátis
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-xs">Frete por conta do cliente</Badge>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Margem de lucro */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Tag className="size-4 text-[#FFD000]" />
+              <h3 className="text-sm font-semibold">Sua margem de lucro</h3>
+            </div>
+
+            {/* Slider de margem */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Margem</span>
+                <span className="font-semibold text-white">{useCustom ? "Personalizado" : `${margin}%`}</span>
+              </div>
+              <input
+                type="range"
+                min="5"
+                max="200"
+                value={margin}
+                onChange={(e) => { setMargin(Number(e.target.value)); setCustomPrice(""); }}
+                className="w-full accent-[#FFD000]"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>5%</span>
+                <span>50%</span>
+                <span>100%</span>
+                <span>200%</span>
+              </div>
+            </div>
+
+            {/* Preço personalizado */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Ou defina o preço de venda:</span>
+              <Input
+                type="number"
+                placeholder="Preço fixo"
+                value={customPrice}
+                onChange={(e) => setCustomPrice(e.target.value)}
+                className="w-32 text-sm"
+              />
+              {customPrice && (
+                <Button variant="ghost" size="sm" className="text-xs h-7 px-2" onClick={() => setCustomPrice("")}>
+                  <X className="size-3" />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Resultado */}
+          <div className="rounded-xl border border-[#FFD000]/30 bg-[#FFD000]/5 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <DollarSign className="size-4 text-[#FFD000]" />
+              <h3 className="text-sm font-semibold text-white">Resultado estimado por venda</h3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <p className="text-xs text-muted-foreground">Preço de venda</p>
+                <p className="mt-1 font-display text-lg font-bold text-white">{brl(precoVendaCalc)}</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <p className="text-xs text-muted-foreground">Custo (fornecedor)</p>
+                <p className="mt-1 font-display text-lg font-bold text-white">{brl(precoFornecedor)}</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <p className="text-xs text-muted-foreground">Taxas (~15%)</p>
+                <p className="mt-1 font-display text-lg font-bold text-red-400">-{brl(resultado.taxaTotal)}</p>
+              </div>
+              <div className="rounded-lg border border-success/30 bg-success/10 p-3">
+                <p className="text-xs text-success">Lucro líquido estimado</p>
+                <p className={`mt-1 font-display text-lg font-bold ${resultado.lucroLiquido >= 0 ? "text-success" : "text-red-400"}`}>
+                  {brl(resultado.lucroLiquido)}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-white/40">
+              * Taxas: ~11% Mercado Livre + ~3.9% pagamento + frete (quando aplicável). Valor aproximado.
+            </p>
+          </div>
+
+          {/* Ações */}
+          <div className="flex flex-col gap-3">
+            <div className="flex gap-2">
+              <Button
+                className="flex-1 bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold"
+                onClick={handleSalvar}
+                disabled={saving || saved}
+              >
+                {saving ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Plus className="size-4 mr-2" />}
+                {saved ? "Salvo!" : "Salvar produto"}
+              </Button>
+              <Button
+                variant="outline"
+                className="border-white/10 text-white hover:bg-white/10 hover:text-white"
+                onClick={handleCopiarLink}
+              >
+                {copied ? <Check className="size-4 mr-2" /> : <Copy className="size-4 mr-2" />}
+                {copied ? "Copiado!" : "Copiar link"}
+              </Button>
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1 border-white/10 text-white hover:bg-white/10 hover:text-white" asChild>
+                <a href={product.permalink} target="_blank" rel="noreferrer">
+                  <Globe className="size-4 mr-2" /> Ver no fornecedor
+                </a>
+              </Button>
+              <Button
+                variant="outline"
+                className={`flex-1 border-[#FFD000]/30 text-[#FFD000] hover:bg-[#FFD000]/10 ${
+                  !mlConnected ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+                disabled={!mlConnected}
+                onClick={() => {
+                  if (!mlConnected) {
+                    toast.error("Conecte sua conta do Mercado Livre primeiro", {
+                      description: "Vá em Integrações para conectar sua conta.",
+                    });
+                  }
+                }}
+                title={!mlConnected ? "Conecte sua conta do Mercado Livre em Integrações" : ""}
+              >
+                <ShoppingBag className="size-4 mr-2" />
+                Publicar no ML {mlConnected ? "" : "(conecte-se)"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Gerador de anúncios */}
+          {saved && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Image className="size-4 text-[#FFD000]" />
+                <h3 className="text-sm font-semibold">Gerador de anúncios</h3>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <AdGenerator
+                  product={{
+                    id: product.id,
+                    title: product.title,
+                    price: precoVendaCalc,
+                    original_price: product.original_price,
+                    category: product.category_name || product.category_id,
+                    image_url: product.thumbnail || product.pictures?.[0]?.url || null,
+                    permalink: product.permalink,
+                    rating: product.reviews_rating ?? 0,
+                    reviews_count: 0,
+                    sold_quantity: product.sold_quantity ?? 0,
+                    free_shipping: product.free_shipping,
+                    is_new: product.condition === "new",
+                    source: "mercadolivre",
+                    description: null,
+                    created_at: new Date().toISOString(),
+                  } as never}
+                  link={product.permalink}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 function CatalogoPage() {
@@ -246,12 +605,14 @@ function CatalogoPage() {
   const [category, setCategory] = React.useState("all");
   const [sort, setSort] = React.useState("relevance");
   const [page, setPage] = React.useState(0);
-  const [selectedProduct, setSelectedProduct] = React.useState<MeliProduct | LocalProduct | null>(null);
-  const [copiedId, setCopiedId] = React.useState<string | null>(null);
-  const [addingId, setAddingId] = React.useState<string | null>(null);
-  const [linkLoadingId, setLinkLoadingId] = React.useState<string | null>(null);
-
+  const [selectedProduct, setSelectedProduct] = React.useState<CatalogProduct | null>(null);
+  const [modalOpen, setModalOpen] = React.useState(false);
   const limit = 24;
+
+  const handleDetails = (p: CatalogProduct) => {
+    setSelectedProduct(p);
+    setModalOpen(true);
+  };
 
   const { data: categories = [] } = useQuery({
     queryKey: ["meli-categories"],
@@ -265,78 +626,86 @@ function CatalogoPage() {
     enabled: Boolean(MELI_ACCESS_TOKEN),
   });
 
-  const { data: localProducts = [] } = useQuery({
-    queryKey: ["products"],
-    queryFn: () => fetchProducts(),
-    enabled: !MELI_ACCESS_TOKEN,
-  });
-
-  const { data: myProducts = [] } = useQuery({
-    queryKey: ["my-products", uid],
-    queryFn: () => fetchMyProducts(uid),
-    enabled: !!uid,
-  });
-
-  const { data: myLinks = [] } = useQuery({
-    queryKey: ["links", uid],
-    queryFn: () => fetchMyLinks(uid),
-    enabled: !!uid,
-  });
-
   const { data: integration } = useQuery({
     queryKey: ["integration", uid],
     queryFn: () => fetchIntegration(uid),
     enabled: !!uid,
   });
 
-  const addMutation = useMutation({
-    mutationFn: async (product: MeliProduct | LocalProduct) => {
-      const p = product as MeliProduct;
-      await addToMyProducts(uid, p);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-products", uid] });
-      toast.success("Produto adicionado à sua lista!");
-    },
-  });
-
-  const linkMutation = useMutation({
-    mutationFn: async (product: MeliProduct | LocalProduct) => {
-      const p = product as MeliProduct;
-      return generateAffiliateLink(uid, p);
-    },
-    onSuccess: (url) => {
-      navigator.clipboard.writeText(url);
-      toast.success("Link copiado!");
-    },
-  });
-
-  const handleCopy = async (id: string, url: string) => {
-    await navigator.clipboard.writeText(url);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
   const totalPages = meliResult ? Math.ceil(meliResult.total / limit) : 0;
   const isMeliConnected = Boolean(MELI_ACCESS_TOKEN);
-  const isUserConnected = integration?.status === "connected";
+  const mlConnected = integration?.status === "connected";
+
+  // Transforma MeliProduct em CatalogProduct
+  const products: CatalogProduct[] = React.useMemo(() => {
+    if (!meliResult?.items) return [];
+    return meliResult.items.map((p): CatalogProduct => ({
+      id: p.id,
+      title: p.title,
+      price: p.price,
+      original_price: p.original_price,
+      thumbnail: p.thumbnail,
+      pictures: p.pictures || [],
+      permalink: p.permalink,
+      category_id: p.category_id,
+      category_name: p.category_id,
+      sold_quantity: p.sold_quantity,
+      reviews_rating: p.reviews_rating ?? 0,
+      condition: p.condition,
+      free_shipping: p.shipping?.free_shipping ?? false,
+      seller_nickname: p.seller?.nickname ?? "",
+      seller_level: p.seller?.seller_reputation?.level_id ?? "",
+      source: "mercadolivre",
+    }));
+  }, [meliResult]);
 
   return (
     <AppLayout
       title="Catálogo"
       description={
         isMeliConnected
-          ? "Explore produtos do Mercado Livre para divulgar como afiliado."
-          : "Catálogo de produtos disponíveis para divulgação."
+          ? "Produtos reais do Mercado Livre para venda sem estoque. Calcule sua margem e comece a lucrar."
+          : "Catálogo de produtos para venda sem estoque."
       }
     >
+      {/* Header */}
+      <div className="mb-6 rounded-xl border border-[#FFD000]/20 bg-[#FFD000]/5 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="grid size-10 place-items-center rounded-xl bg-[#FFD000]/10">
+              <ShoppingBag className="size-5 text-[#FFD000]" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-white">Catálogo de Fornecedores</h2>
+              <p className="text-xs text-white/50">
+                {isMeliConnected
+                  ? `${meliResult?.total.toLocaleString("pt-BR") ?? 0} produtos reais do Mercado Livre`
+                  : "Configure VITE_MELI_ACCESS_TOKEN para carregar produtos reais"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {mlConnected ? (
+              <Badge className="bg-success/10 text-success border-success/20 gap-1">
+                <Check className="size-3" /> Mercado Livre conectado
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="border-[#FFD000]/20 text-[#FFD000] text-xs gap-1">
+                <AlertCircle className="size-3" />
+                <Link to="/integracoes">Conecte o ML</Link> para publicar
+              </Badge>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Filters */}
       <div className="surface mb-6 space-y-4 p-4">
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar produtos..."
+              placeholder="Buscar produtos, marcas, categorias..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0); }}
               className="pl-9"
@@ -344,18 +713,18 @@ function CatalogoPage() {
           </div>
           <div className="flex gap-2">
             <Select value={category} onValueChange={(v) => { setCategory(v); setPage(0); }}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Categoria" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="all">Todas as categorias</SelectItem>
                 {categories.map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={sort} onValueChange={(v) => { setSort(v); setPage(0); }}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-[170px]">
                 <SelectValue placeholder="Ordenar" />
               </SelectTrigger>
               <SelectContent>
@@ -368,18 +737,23 @@ function CatalogoPage() {
           </div>
         </div>
 
+        {/* Categorias rápidas */}
         {isMeliConnected && (
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="bg-[#FFD000]/10 text-[#FFD000] border-[#FFD000]/20">
-              <ShoppingBag className="mr-1 size-3" />
-              Mercado Livre conectado — {meliResult?.total.toLocaleString("pt-BR") ?? 0} produtos encontrados
-            </Badge>
-            {!isUserConnected && (
-              <Badge variant="outline" className="border-white/10 text-white/40 text-xs">
-                <AlertCircle className="mr-1 size-3" />
-                <Link to="/integracoes">Conecte sua conta</Link> para rastrear vendas
-              </Badge>
-            )}
+          <div className="flex flex-wrap gap-2">
+            {CATEGORIAS_POPULARES.slice(0, 8).map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => { setCategory(cat.id); setPage(0); }}
+                className={
+                  category === cat.id
+                    ? "rounded-full bg-[#FFD000] px-3 py-1 text-xs font-medium text-black transition-all"
+                    : "rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/60 hover:bg-white/10 hover:text-white transition-all"
+                }
+              >
+                {cat.icon} {cat.name}
+              </button>
+            ))}
           </div>
         )}
       </div>
@@ -397,7 +771,7 @@ function CatalogoPage() {
               </div>
             ))}
           </div>
-        ) : meliResult?.items.length === 0 ? (
+        ) : products.length === 0 ? (
           <EmptyState
             icon={Search}
             title="Nenhum produto encontrado"
@@ -405,99 +779,9 @@ function CatalogoPage() {
           />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {meliResult?.items.map((p) => {
-              const isSaved = myProducts.some((mp) => mp.product_id === p.id);
-              const hasLink = myLinks.some((ml) => ml.product_id === p.id);
-              const savedLink = myLinks.find((ml) => ml.product_id === p.id);
-
-              return (
-                <div key={p.id} className="surface group overflow-hidden transition-all duration-300 hover:shadow-[var(--shadow-lift)]">
-                  {p.thumbnail && (
-                    <div className="relative aspect-[4/3] overflow-hidden bg-muted cursor-pointer" onClick={() => setSelectedProduct(p)}>
-                      <img
-                        src={p.thumbnail.replace("-I", "-O")}
-                        alt={p.title}
-                        loading="lazy"
-                        className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                      {p.shipping.free_shipping && (
-                        <div className="absolute bottom-2 left-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase text-primary-foreground flex items-center gap-1">
-                          <Truck className="size-3" /> Frete grátis
-                        </div>
-                      )}
-                      {p.condition === "new" && (
-                        <div className="absolute top-2 right-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-black">
-                          Novo
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <div className="p-4 space-y-2">
-                    <Badge variant="secondary" className="text-[10px]">
-                      {p.category_id}
-                    </Badge>
-                    <p className="line-clamp-2 text-sm font-semibold leading-tight cursor-pointer hover:text-primary" onClick={() => setSelectedProduct(p)}>
-                      {p.title}
-                    </p>
-                    <div className="flex items-center gap-1">
-                      <Star className="size-3 text-[#FFD000]" />
-                      <span className="text-xs text-muted-foreground">
-                        {p.reviews_rating > 0 ? `${p.reviews_rating}/5 (${p.reviews_total})` : "Sem avaliações"}
-                      </span>
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-display text-xl font-bold">{brl(p.price)}</span>
-                      {p.original_price && p.original_price > p.price && (
-                        <span className="text-xs text-muted-foreground line-through">{brl(p.original_price)}</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {p.sold_quantity.toLocaleString("pt-BR")} vendidos
-                    </p>
-                    <div className="flex gap-2 pt-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 border-white/10 text-white hover:bg-white/10 hover:text-white text-xs"
-                        onClick={() => setSelectedProduct(p)}
-                      >
-                        <ExternalLink className="size-3 mr-1" /> Ver
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="flex-1 bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold text-xs"
-                        onClick={() => linkMutation.mutate(p)}
-                        disabled={linkMutation.isPending && linkLoadingId === p.id}
-                      >
-                        {linkLoadingId === p.id ? (
-                          <Loader2 className="size-3 mr-1 animate-spin" />
-                        ) : hasLink ? (
-                          <>
-                            <Copy className="size-3 mr-1" />
-                            {copiedId === p.id ? <Check className="size-3 mr-1" /> : null}
-                            Copiar
-                          </>
-                        ) : (
-                          <>
-                            <ExternalLink className="size-3 mr-1" /> Link
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-white/40 hover:text-white hover:bg-white/10 text-xs px-2"
-                        onClick={() => { setAddingId(p.id); addMutation.mutate(p); }}
-                        disabled={isSaved || addMutation.isPending}
-                        title={isSaved ? "Já está na sua lista" : "Adicionar à minha lista"}
-                      >
-                        <Plus className={`size-4 ${isSaved ? "text-success" : ""}`} />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {products.map((p) => (
+              <ProductCard key={p.id} product={p} onDetails={handleDetails} />
+            ))}
           </div>
         )
       ) : (
@@ -507,7 +791,7 @@ function CatalogoPage() {
             <div>
               <p className="font-semibold text-white">Catálogo do Mercado Livre não configurado</p>
               <p className="mt-1 text-sm text-white/50">
-                Para exibir produtos reais do Mercado Livre, configure <code className="text-xs bg-white/10 px-1 rounded">VITE_MELI_ACCESS_TOKEN</code> no ambiente.
+                Para exibir produtos reais, configure <code className="text-xs bg-white/10 px-1 rounded">VITE_MELI_ACCESS_TOKEN</code> no ambiente.
               </p>
               <a
                 href="https://developers.mercadolivre.com.br"
@@ -519,57 +803,24 @@ function CatalogoPage() {
               </a>
             </div>
           </div>
-          {localProducts.length === 0 ? (
-            <EmptyState
-              icon={ShoppingBag}
-              title="Catálogo vazio"
-              description="Nenhum produto disponível no momento. Configure a API do Mercado Livre."
-              action={
-                <Button asChild size="sm" className="bg-[#FFD000] text-black hover:bg-[#FFD000]/90">
-                  <Link to="/meus-produtos">Meus Produtos</Link>
-                </Button>
-              }
-            />
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {localProducts.map((p) => (
-                <div key={p.id} className="surface group overflow-hidden transition-all duration-300 hover:shadow-[var(--shadow-lift)]">
-                  {p.image_url && (
-                    <div className="relative aspect-[4/3] overflow-hidden bg-muted cursor-pointer" onClick={() => setSelectedProduct(p)}>
-                      <img src={p.image_url} alt={p.title} loading="lazy" className="size-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                      {p.free_shipping && (
-                        <div className="absolute bottom-2 left-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground flex items-center gap-1">
-                          <Truck className="size-3" /> Frete grátis
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <div className="p-4 space-y-2">
-                    <Badge variant="secondary" className="text-[10px]">{p.category}</Badge>
-                    <p className="line-clamp-2 text-sm font-semibold cursor-pointer hover:text-primary" onClick={() => setSelectedProduct(p)}>{p.title}</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-display text-xl font-bold">{brl(Number(p.price))}</span>
-                      {p.original_price && (
-                        <span className="text-xs text-muted-foreground line-through">{brl(Number(p.original_price))}</span>
-                      )}
-                    </div>
-                    <div className="flex gap-2 pt-1">
-                      <Button size="sm" variant="outline" className="flex-1 border-white/10 text-white hover:bg-white/10 hover:text-white text-xs"
-                        onClick={() => setSelectedProduct(p)}>
-                        <ExternalLink className="size-3 mr-1" /> Ver
-                      </Button>
-                      <Button size="sm" className="flex-1 bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold text-xs"
-                        onClick={() => {
-                          if (p.permalink) handleCopy(p.id, p.permalink);
-                        }}>
-                        <Copy className="size-3 mr-1" /> Link
-                      </Button>
-                    </div>
-                  </div>
+
+          {/* Categorias mesmo sem API */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {CATEGORIAS_POPULARES.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setCategory(cat.id)}
+                className="surface flex items-center gap-3 p-4 text-left transition-all hover:shadow-[var(--shadow-lift)]"
+              >
+                <span className="text-2xl">{cat.icon}</span>
+                <div>
+                  <p className="text-sm font-medium text-white">{cat.name}</p>
+                  <p className="text-xs text-muted-foreground">Ver produtos</p>
                 </div>
-              ))}
-            </div>
-          )}
+              </button>
+            ))}
+          </div>
         </>
       )}
 
@@ -586,7 +837,7 @@ function CatalogoPage() {
             Anterior
           </Button>
           <span className="text-sm text-muted-foreground">
-            {page + 1} de {totalPages}
+            {page + 1} de {totalPages} — {meliResult?.total.toLocaleString("pt-BR")} produtos
           </span>
           <Button
             variant="outline"
@@ -600,8 +851,15 @@ function CatalogoPage() {
         </div>
       )}
 
-      {/* Product Dialog */}
-      <ProductDialog product={selectedProduct as never} open={!!selectedProduct} onOpenChange={(o) => !o && setSelectedProduct(null)} />
+      {/* Product Detail Modal */}
+      <ProductDetailModal
+        product={selectedProduct}
+        open={modalOpen}
+        onOpenChange={(v) => {
+          setModalOpen(v);
+          if (!v) setSelectedProduct(null);
+        }}
+      />
     </AppLayout>
   );
 }
