@@ -19,7 +19,7 @@ Deno.serve(async (req: Request) => {
   const DEMO_NAME = "Admin Teste";
 
   // 1. Check if user already exists by email
-  const { data: existing } = await admin
+  const { data: existingProfile } = await admin
     .from("profiles")
     .select("id, email")
     .eq("email", DEMO_EMAIL)
@@ -27,15 +27,15 @@ Deno.serve(async (req: Request) => {
 
   let userId: string;
 
-  if (existing) {
-    userId = existing.id;
+  if (existingProfile) {
+    userId = existingProfile.id;
   } else {
     // 2. Create user via Admin API
     const { data: authUser, error: authError } = await admin.auth.admin.createUser({
       email: DEMO_EMAIL,
       password: DEMO_PASSWORD,
       email_confirm: true,
-      user_metadata: { full_name: DEMO_NAME, role: "admin", is_admin: true, is_test_account: true },
+      user_metadata: { full_name: DEMO_NAME, role: "admin", is_admin: true },
     });
 
     if (authError || !authUser.user) {
@@ -45,20 +45,17 @@ Deno.serve(async (req: Request) => {
       );
     }
     userId = authUser.user.id;
+
+    // 3. Create profile for new user
+    await admin.from("profiles").insert({
+      id: userId,
+      full_name: DEMO_NAME,
+      email: DEMO_EMAIL,
+    });
   }
 
-  // 3. Upsert profile with admin role
-  await admin.from("profiles").upsert({
-    id: userId,
-    full_name: DEMO_NAME,
-    email: DEMO_EMAIL,
-    role: "admin",
-    is_admin: true,
-    is_test_account: true,
-  }, { onConflict: "id" });
-
   // 4. Ensure lifetime plan exists
-  let { data: plan } = await admin
+  let plan = await admin
     .from("plans")
     .select("id")
     .eq("slug", "lifetime")
@@ -68,9 +65,9 @@ Deno.serve(async (req: Request) => {
     const { data: newPlan } = await admin.from("plans").insert({
       name: "Lifetime",
       slug: "lifetime",
-      description: "Acesso vitalicio - pagamento unico",
+      description: "Acesso vitalício — pagamento único",
       price_cents: 25599,
-      features: ["Catalogo completo", "Produtos ilimitados", "Gerador de links", "Criador de anuncios", "Dashboard", "Analytics", "Pedidos e financeiro", "Suporte prioritario"],
+      features: ["Catálogo completo", "Produtos ilimitados", "Gerador de links", "Criador de anúncios", "Dashboard", "Analytics", "Pedidos e financeiro", "Suporte prioritário"],
       highlight: true,
       sort_order: 2,
     }).select("id").single();
@@ -84,17 +81,14 @@ Deno.serve(async (req: Request) => {
       plan_id: plan.id,
       status: "active",
       current_period_end: null,
-      cancel_at_period_end: false,
     }, { onConflict: "user_id" });
   }
 
-  // 6. Upsert admin role in user_roles if table exists
+  // 6. Upsert admin role in user_roles
   await admin.from("user_roles").upsert({
     user_id: userId,
     role: "admin",
-  }, { onConflict: "user_id" }).catch(() => {
-    // user_roles table may not exist - ignore error
-  });
+  }, { onConflict: "user_id" }).catch(() => {});
 
   return new Response(
     JSON.stringify({
@@ -104,7 +98,7 @@ Deno.serve(async (req: Request) => {
       role: "admin",
       plan: "lifetime",
       user_id: userId,
-      message: "Conta criada/atualizada com sucesso!\n\nEmail: ryan123@gmail.com\nSenha: ryan123\nPlano: Lifetime (vitalicio)\nStatus: Ativo\n\nFaça login em /auth com essas credenciais.",
+      message: "Conta criada/atualizada com sucesso!\n\nEmail: ryan123@gmail.com\nSenha: ryan123\nPlano: Lifetime (vitalício)\nStatus: Ativo\n\nFaça login em /auth com essas credenciais.",
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
