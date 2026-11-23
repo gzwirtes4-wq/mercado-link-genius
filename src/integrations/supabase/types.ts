@@ -138,6 +138,45 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: string
+          new_data: Json | null
+          old_data: Json | null
+          table_name: string
+          target_user_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          table_name: string
+          target_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          table_name?: string
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
+      meli_oauth_states: {
+        Row: { created_at: string; state: string; user_id: string }
+        Insert: { created_at?: string; state: string; user_id: string }
+        Update: { created_at?: string; state?: string; user_id?: string }
+        Relationships: []
+      }
       meli_tokens: {
         Row: {
           access_token: string
@@ -474,6 +513,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_plan: {
+        Args: { _target: string; _plan_slug: string }
+        Returns: Database["public"]["Tables"]["subscriptions"]["Row"]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

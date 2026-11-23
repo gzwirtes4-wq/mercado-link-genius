@@ -1,5 +1,6 @@
 import * as React from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/auth")({
   ssr: false,
   validateSearch: (search: Record<string, unknown>) => ({
     step: typeof search['step'] === "string" ? (search['step'] as string) : undefined,
+    mode: typeof search['mode'] === "string" ? (search['mode'] as string) : undefined,
   }),
   head: () => ({
     meta: [
@@ -38,10 +40,11 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-// Resolve plan slug → UUID using the plans table
-const PLAN_MAP: Record<string, string> = {
-  monthly: "classic",
-  lifetime: "lifetime",
+// Public checkout links (safe to expose). Configure in the environment:
+//   VITE_CHECKOUT_URL_MONTHLY, VITE_CHECKOUT_URL_LIFETIME
+const CHECKOUT_URLS: Record<string, string | undefined> = {
+  monthly: import.meta.env["VITE_CHECKOUT_URL_MONTHLY"] as string | undefined,
+  lifetime: import.meta.env["VITE_CHECKOUT_URL_LIFETIME"] as string | undefined,
 };
 
 const PLANS_STEPS = [
@@ -82,9 +85,14 @@ const PLANS_STEPS = [
 
 function AuthPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { session, loading } = useAuth();
   const [busy, setBusy] = React.useState(false);
-  const [mode, setMode] = React.useState("login");
+  // ?mode=signup opens the "Criar conta" tab directly (use it as the
+  // post-purchase redirect URL in the checkout platform).
+  const [mode, setMode] = React.useState(() =>
+    new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "login",
+  );
   const [recovering, setRecovering] = React.useState(false);
   const [showPlans, setShowPlans] = React.useState(false);
   const [activating, setActivating] = React.useState<string | null>(null);
@@ -173,75 +181,31 @@ function AuthPage() {
     navigate({ to: "/dashboard" });
   };
 
-  const handleDemo = async () => {
-    setBusy(true);
-    try {
-      const res = await fetch(
-        `${import.meta.env['VITE_SUPABASE_URL'] ?? ""}/functions/v1/create-demo-user`,
-        {
-          headers: {
-            Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ""}`,
-            "Content-Type": "application/json",
-          },
-        },
-      );
-      const data = await res.json();
-      if (data.session) {
-        await supabase.auth.setSession(data.session as import("@supabase/supabase-js").Session);
-        toast.success("Demo criado! Bem-vindo ao painel.");
-        navigate({ to: "/dashboard" });
-      } else {
-        toast.error("Não foi possível criar demo. Verifique a integração.");
-      }
-    } catch {
-      toast.error("Erro ao criar usuário demo.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleActivatePlan = async (slug: string) => {
+  // Plans are activated ONLY by the backend after a confirmed payment
+  // (payment webhook) or manually by an admin. The browser never writes
+  // to `subscriptions`. These buttons only send the buyer to checkout.
+  const handleActivatePlan = (slug: string) => {
     if (!session?.user) {
       setMode("login");
       setShowPlans(false);
       toast.error("Faça login primeiro");
       return;
     }
+    const url = CHECKOUT_URLS[slug];
+    if (!url) {
+      toast.error("Pagamento ainda não configurado", {
+        description: "Abra um chamado ou fale com o suporte para liberar seu acesso.",
+      });
+      return;
+    }
     setActivating(slug);
+    window.location.href = url;
+  };
 
-    const { data: plan, error: planError } = await supabase
-      .from("plans")
-      .select("id")
-      .eq("slug", PLAN_MAP[slug] ?? slug)
-      .maybeSingle();
-
-    if (planError || !plan) {
-      toast.error("Plano não encontrado. Tente novamente.");
-      setActivating(null);
-      return;
-    }
-
-    const isLifetime = slug === "lifetime";
-    const periodEnd = isLifetime ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-
-    const { error: subError } = await supabase
-      .from("subscriptions")
-      .upsert(
-        {
-          user_id: session.user.id,
-          plan_id: plan.id,
-          status: "active",
-          current_period_end: periodEnd,
-        },
-        { onConflict: "user_id" },
-      );
-
+  const handleCheckAccess = async () => {
+    setActivating("check");
+    await queryClient.invalidateQueries({ queryKey: ["access"] });
     setActivating(null);
-    if (subError) {
-      toast.error("Erro ao ativar plano", { description: subError.message });
-      return;
-    }
-    toast.success("Plano ativado! Bem-vindo ao Mercado Ecommerce.");
     navigate({ to: "/dashboard" });
   };
 
@@ -321,7 +285,7 @@ function AuthPage() {
                       onClick={() => handleActivatePlan("lifetime")}
                       disabled={activating !== null}
                     >
-                      {activating === "lifetime" ? "Ativando..." : "COMPRAR LIFETIME"}
+                      {activating === "lifetime" ? "Abrindo pagamento..." : "COMPRAR LIFETIME"}
                       <ArrowRight className="size-4" />
                     </Button>
                   ) : (
@@ -331,7 +295,7 @@ function AuthPage() {
                       onClick={() => handleActivatePlan("monthly")}
                       disabled={activating !== null}
                     >
-                      {activating === "monthly" ? "Ativando..." : "ASSINAR AGORA"}
+                      {activating === "monthly" ? "Abrindo pagamento..." : "ASSINAR AGORA"}
                       <ArrowRight className="size-4" />
                     </Button>
                   )}
@@ -340,10 +304,21 @@ function AuthPage() {
             ))}
           </div>
 
-          <p className="mt-8 text-center text-xs text-white/30">
-            Sistema em modo demonstração — a ativação é instantânea para testes.
-            Em produção, conecte um gateway de pagamento real.
-          </p>
+          <div className="mt-8 flex flex-col items-center gap-3 text-center">
+            <p className="text-xs text-white/40">
+              Após a confirmação do pagamento, seu acesso é liberado nesta mesma conta
+              ({session?.user?.email}). Use o mesmo e-mail no checkout.
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-white/60 hover:text-white hover:bg-white/10"
+              onClick={handleCheckAccess}
+              disabled={activating !== null}
+            >
+              {activating === "check" ? "Verificando..." : "Já paguei — verificar meu acesso"}
+            </Button>
+          </div>
         </main>
       </div>
     );

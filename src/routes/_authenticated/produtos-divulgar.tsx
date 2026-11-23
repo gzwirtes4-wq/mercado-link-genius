@@ -43,6 +43,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { brl } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyLinks, fetchIntegration } from "@/lib/queries";
+import { meliSearch, meliSaveProduct } from "@/lib/meli.functions";
 
 export const Route = createFileRoute("/_authenticated/produtos-divulgar")({
   head: () => ({
@@ -54,8 +55,8 @@ export const Route = createFileRoute("/_authenticated/produtos-divulgar")({
   component: ProdutosDivulgarPage,
 });
 
-// ─── Mercado Livre API Config ────────────────────────────────────────────────
-const MELI_API_BASE = "https://api.mercadolivre.com.br";
+// ─── Mercado Livre API ───────────────────────────────────────────────────────
+// Calls go through server functions with the seller's own OAuth token.
 
 interface MeliProduct {
   id: string;
@@ -118,28 +119,18 @@ async function fetchMeliProducts(params: {
   offset: number;
   limit: number;
 }): Promise<{ items: MeliProduct[]; total: number }> {
-  try {
-    let url: string;
-    if (params.sellerId && params.sellerId !== "all") {
-      url = `${MELI_API_BASE}/sites/MLB/search?seller_id=${params.sellerId}&offset=${params.offset}&limit=${params.limit}`;
-    } else if (params.query) {
-      url = `${MELI_API_BASE}/sites/MLB/search?q=${encodeURIComponent(params.query)}&offset=${params.offset}&limit=${params.limit}`;
-      if (params.category && params.category !== "all") url += `&category=${params.category}`;
-      if (params.sort) url += `&sort=${params.sort}`;
-    } else if (params.category && params.category !== "all") {
-      url = `${MELI_API_BASE}/sites/MLB/search?category=${params.category}&offset=${params.offset}&limit=${params.limit}`;
-      if (params.sort) url += `&sort=${params.sort}`;
-    } else {
-      url = `${MELI_API_BASE}/sites/MLB/search?offset=${params.offset}&limit=${params.limit}`;
-    }
-
-    const res = await fetch(url);
-    if (!res.ok) return { items: [], total: 0 };
-    const data = await res.json();
-    return { items: data.results ?? [], total: data.paging?.total ?? 0 };
-  } catch {
-    return { items: [], total: 0 };
-  }
+  const r = await meliSearch({
+    data: {
+      q: params.query,
+      category: params.category === "all" ? "" : params.category,
+      sellerId: params.sellerId === "all" ? "" : params.sellerId,
+      sort: params.sort,
+      offset: params.offset,
+      limit: params.limit,
+    },
+  });
+  if (!r.ok) throw new Error(r.message);
+  return { items: r.items as unknown as MeliProduct[], total: r.total };
 }
 
 // ─── Extract unique sellers from products ─────────────────────────────────────
@@ -169,74 +160,52 @@ function extractFornecedores(products: MeliProduct[]): Fornecedor[] {
   return Array.from(map.values()).sort((a, b) => b.totalVendido - a.totalVendido);
 }
 
-// ─── Generate / Save Affiliate Link ──────────────────────────────────────────
+// ─── Generate / Save Link ─────────────────────────────────────────────────────
+// NOTE: this stores the listing's public permalink. It is NOT an affiliate
+// (commissioned) link: Mercado Livre does not offer a public API to generate
+// affiliate links, so commissions are not tracked here.
+async function saveCatalogProduct(product: MeliProduct): Promise<string> {
+  const r = await meliSaveProduct({ data: { itemId: product.id } });
+  if (!r.ok) throw new Error(r.message);
+  return r.productId;
+}
+
 async function generateAffiliateLink(userId: string, product: MeliProduct): Promise<string> {
-  const { data: existing } = await supabase
+  const productId = await saveCatalogProduct(product);
+  const { data: existing, error: readErr } = await supabase
     .from("affiliate_links")
     .select("url, id")
     .eq("user_id", userId)
-    .eq("product_id", product.id)
+    .eq("product_id", productId)
     .maybeSingle();
-
+  if (readErr) throw new Error(readErr.message);
   if (existing) return existing.url;
-  const linkUrl = product.permalink;
-  const shortCode = Math.random().toString(36).slice(2, 8);
-  await supabase.from("affiliate_links").insert({
+
+  const { error } = await supabase.from("affiliate_links").insert({
     user_id: userId,
-    product_id: product.id,
-    url: linkUrl,
-    short_code: shortCode,
+    product_id: productId,
+    url: product.permalink,
+    short_code: crypto.randomUUID().replace(/-/g, "").slice(0, 10),
     clicks: 0,
   });
-  return linkUrl;
+  if (error) throw new Error(error.message);
+  return product.permalink;
 }
 
 // ─── Add to My Products ──────────────────────────────────────────────────────
-async function addToMyProducts(userId: string, product: MeliProduct): Promise<void> {
-  const { data: saved, error: upsertError } = await supabase
-    .from("products")
-    .upsert(
-      {
-        external_id: product.id,
-        title: product.title,
-        price: product.price,
-        original_price: product.original_price ?? null,
-        category: product.category_id ?? "Geral",
-        image_url: product.thumbnail,
-        permalink: product.permalink,
-        rating: product.reviews_rating ?? 0,
-        reviews_count: product.reviews_total ?? 0,
-        sold_quantity: product.sold_quantity ?? 0,
-        free_shipping: product.shipping?.free_shipping ?? false,
-        source: "mercadolivre",
-        active: true,
-      },
-      { onConflict: "external_id" },
-    )
-    .select("id")
-    .maybeSingle();
-
-  if (upsertError || !saved) {
-    toast.error("Não foi possível salvar o produto");
-    return;
-  }
-
-  const { data: existing } = await supabase
-    .from("user_products")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("product_id", saved.id)
-    .maybeSingle();
-  if (existing) {
-    toast.info("Este produto já está na sua lista");
-    return;
-  }
-
-  await supabase.from("user_products").insert({
+/** Returns false when the product was already in the user's list. */
+async function addToMyProducts(userId: string, product: MeliProduct): Promise<boolean> {
+  const productId = await saveCatalogProduct(product);
+  const { error } = await supabase.from("user_products").insert({
     user_id: userId,
-    product_id: saved.id,
+    product_id: productId,
     status: "ativo",
   });
+  if (error) {
+    if (error.code === "23505") return false; // unique (user_id, product_id)
+    throw new Error(error.message);
+  }
+  return true;
 }
 
 // ─── Reputation Badge ─────────────────────────────────────────────────────────
@@ -268,11 +237,21 @@ function ProdutosDivulgarPage() {
 
   const limit = 24;
 
-  const { data: meliResult, isLoading } = useQuery({
+  const { data: integration } = useQuery({
+    queryKey: ["integration", uid],
+    queryFn: () => fetchIntegration(uid),
+    enabled: !!uid,
+  });
+  const isUserConnected = integration?.status === "connected";
+
+  const { data: meliResult, isLoading: searchLoading, error: meliError, refetch: refetchMeli } = useQuery({
     queryKey: ["meli-products", search, category, sellerId, sort, page],
     queryFn: () =>
       fetchMeliProducts({ query: search, category, sellerId, sort: sort === "relevance" ? "" : sort, offset: page * limit, limit }),
+    enabled: isUserConnected,
+    retry: false,
   });
+  const isLoading = isUserConnected && searchLoading;
 
   const { data: myLinks = [] } = useQuery({
     queryKey: ["links", uid],
@@ -280,24 +259,27 @@ function ProdutosDivulgarPage() {
     enabled: !!uid,
   });
 
-  const { data: integration } = useQuery({
-    queryKey: ["integration", uid],
-    queryFn: () => fetchIntegration(uid),
-    enabled: !!uid,
-  });
-
   const fornecedores = extractFornecedores(meliResult?.items ?? []);
-  const isUserConnected = integration?.status === "connected";
   const totalPages = meliResult ? Math.ceil(meliResult.total / limit) : 0;
 
   const linkMutation = useMutation({
     mutationFn: async (product: MeliProduct) => generateAffiliateLink(uid, product),
-    onSuccess: (url) => { navigator.clipboard.writeText(url); toast.success("Link copiado!"); },
+    onSuccess: (url) => {
+      void navigator.clipboard.writeText(url);
+      queryClient.invalidateQueries({ queryKey: ["links", uid] });
+      toast.success("Link copiado!");
+    },
+    onError: (e: Error) => toast.error("Não foi possível salvar o link", { description: e.message }),
   });
 
   const addMutation = useMutation({
-    mutationFn: async (product: MeliProduct) => { await addToMyProducts(uid, product); },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["my-products", uid] }); toast.success("Adicionado à sua lista!"); },
+    mutationFn: async (product: MeliProduct) => addToMyProducts(uid, product),
+    onSuccess: (added) => {
+      queryClient.invalidateQueries({ queryKey: ["my-products", uid] });
+      if (added) toast.success("Adicionado à sua lista!");
+      else toast.info("Este produto já está na sua lista");
+    },
+    onError: (e: Error) => toast.error("Não foi possível adicionar", { description: e.message }),
   });
 
   const handleCopy = async (id: string, url: string) => {
@@ -540,6 +522,16 @@ function ProdutosDivulgarPage() {
             </div>
           ))}
         </div>
+      ) : !isUserConnected ? (
+        <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center space-y-2">
+          <p className="text-sm text-white/70">Conecte sua conta do Mercado Livre para pesquisar produtos.</p>
+          <Link to="/integracoes" className="text-sm text-[#FFD000] underline underline-offset-2">Ir para Integrações</Link>
+        </div>
+      ) : meliError ? (
+        <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center space-y-3">
+          <p className="text-sm text-white/70">{(meliError as Error).message}</p>
+          <Button size="sm" variant="outline" onClick={() => void refetchMeli()}>Tentar novamente</Button>
+        </div>
       ) : meliResult?.items.length === 0 ? (
         <EmptyState
           icon={ShoppingBag}
@@ -549,8 +541,8 @@ function ProdutosDivulgarPage() {
       ) : (
         <div className={viewMode === "grid" ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-4" : "space-y-3"}>
           {meliResult?.items.map((p) => {
-            const hasLink = myLinks.some((ml) => ml.product_id === p.id);
-            const savedLink = myLinks.find((ml) => ml.product_id === p.id);
+            const hasLink = myLinks.some((ml) => ml.external_id === p.id);
+            const savedLink = myLinks.find((ml) => ml.external_id === p.id);
 
             if (viewMode === "list") {
               return (
@@ -588,8 +580,13 @@ function ProdutosDivulgarPage() {
                         </Button>
                         <Button size="sm" className="bg-[#FFD000] text-black hover:bg-[#FFD000]/90"
                           onClick={async () => {
-                            const url = hasLink && savedLink ? savedLink.url : await generateAffiliateLink(uid, p);
-                            handleCopy(p.id, url);
+                            try {
+                              const url = hasLink && savedLink ? savedLink.url : await generateAffiliateLink(uid, p);
+                              await handleCopy(p.id, url);
+                              if (!hasLink) queryClient.invalidateQueries({ queryKey: ["links", uid] });
+                            } catch (e) {
+                              toast.error("Não foi possível gerar o link", { description: (e as Error).message });
+                            }
                           }}>
                           {copiedId === p.id ? <><Check className="size-3 mr-1" /> Copiado!</> : <><Copy className="size-3 mr-1" /> Gerar Link</>}
                         </Button>
@@ -650,8 +647,13 @@ function ProdutosDivulgarPage() {
                     <Button size="sm"
                       className="flex-1 bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold text-xs"
                       onClick={async () => {
-                        const url = hasLink && savedLink ? savedLink.url : await generateAffiliateLink(uid, p);
-                        handleCopy(p.id, url);
+                        try {
+                          const url = hasLink && savedLink ? savedLink.url : await generateAffiliateLink(uid, p);
+                          await handleCopy(p.id, url);
+                          if (!hasLink) queryClient.invalidateQueries({ queryKey: ["links", uid] });
+                        } catch (e) {
+                          toast.error("Não foi possível gerar o link", { description: (e as Error).message });
+                        }
                       }}>
                       {copiedId === p.id ? <><Check className="size-3 mr-1" /> Copiado!</> : hasLink ? <><Copy className="size-3 mr-1" /> Copiar</> : <><Zap className="size-3 mr-1" /> Link</>}
                     </Button>
