@@ -21,6 +21,15 @@ export type MeliErrorKind =
   | "api_error"
   | "network";
 
+export type MeliFailure = { ok: false; kind: string; message: string };
+
+/** Converts any error into a serializable failure for server functions. */
+export function toFailure(e: unknown): MeliFailure {
+  if (e instanceof MeliError) return { ok: false, kind: e.kind, message: e.message };
+  console.error(JSON.stringify({ scope: "meli", level: "error", msg: "unexpected", err: String(e) }));
+  return { ok: false, kind: "internal", message: "Erro interno ao falar com o Mercado Livre" };
+}
+
 export class MeliError extends Error {
   constructor(
     public kind: MeliErrorKind,

@@ -21,13 +21,6 @@ export type MeliSearchItem = {
   seller: { id: number; nickname: string; seller_reputation?: { level_id: string | null; power_seller_status: string | null } };
 };
 
-async function asFailure(e: unknown): Promise<MeliFailure> {
-  const { MeliError } = await import("@/lib/meli.server");
-  if (e instanceof MeliError) return { ok: false, kind: e.kind, message: e.message };
-  console.error(JSON.stringify({ scope: "meli", level: "error", msg: "unexpected", err: String(e) }));
-  return { ok: false, kind: "internal", message: "Erro interno ao falar com o Mercado Livre" };
-}
-
 /** Status of the current user's connection (no tokens are returned). */
 export const meliStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -58,7 +51,8 @@ export const meliStartAuth = createServerFn({ method: "POST" })
       });
       return { ok: true, url: `${MELI_AUTH_URL}?${params.toString()}` };
     } catch (e) {
-      return asFailure(e);
+      const { toFailure } = await import("@/lib/meli.server");
+      return toFailure(e);
     }
   });
 
@@ -70,7 +64,8 @@ export const meliDisconnect = createServerFn({ method: "POST" })
       await disconnect(context.userId);
       return { ok: true };
     } catch (e) {
-      return asFailure(e);
+      const { toFailure } = await import("@/lib/meli.server");
+      return toFailure(e);
     }
   });
 
@@ -112,7 +107,8 @@ export const meliSearch = createServerFn({ method: "POST" })
       // Mercado Livre caps search paging at offset 1000
       return { ok: true, items: r.results ?? [], total: Math.min(r.paging?.total ?? 0, 1000) };
     } catch (e) {
-      return asFailure(e);
+      const { toFailure } = await import("@/lib/meli.server");
+      return toFailure(e);
     }
   });
 
@@ -172,6 +168,7 @@ export const meliSaveProduct = createServerFn({ method: "POST" })
       if (error || !saved) return { ok: false, kind: "db", message: "Não foi possível salvar o produto no catálogo" };
       return { ok: true, productId: saved.id };
     } catch (e) {
-      return asFailure(e);
+      const { toFailure } = await import("@/lib/meli.server");
+      return toFailure(e);
     }
   });
