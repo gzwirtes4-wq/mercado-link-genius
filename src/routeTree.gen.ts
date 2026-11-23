@@ -13,7 +13,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as ApiMeliCallbackRouteImport } from './routes/api/meli/callback'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedCatalogoRouteImport } from './routes/_authenticated/catalogo'
 import { Route as AuthenticatedChamadosRouteImport } from './routes/_authenticated/chamados'
@@ -42,11 +41,6 @@ const AuthRoute = AuthRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiMeliCallbackRoute = ApiMeliCallbackRouteImport.update({
-  id: '/api/meli/callback',
-  path: '/api/meli/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -108,7 +102,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/api/meli/callback': typeof ApiMeliCallbackRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/catalogo': typeof AuthenticatedCatalogoRoute
   '/chamados': typeof AuthenticatedChamadosRoute
@@ -124,7 +117,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/api/meli/callback': typeof ApiMeliCallbackRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/catalogo': typeof AuthenticatedCatalogoRoute
   '/chamados': typeof AuthenticatedChamadosRoute
@@ -142,7 +134,6 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/api/meli/callback': typeof ApiMeliCallbackRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/catalogo': typeof AuthenticatedCatalogoRoute
   '/_authenticated/chamados': typeof AuthenticatedChamadosRoute
@@ -160,7 +151,6 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
-    | '/api/meli/callback'
     | '/admin'
     | '/catalogo'
     | '/chamados'
@@ -176,7 +166,6 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
-    | '/api/meli/callback'
     | '/admin'
     | '/catalogo'
     | '/chamados'
@@ -193,7 +182,6 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
-    | '/api/meli/callback'
     | '/_authenticated/admin'
     | '/_authenticated/catalogo'
     | '/_authenticated/chamados'
@@ -211,7 +199,6 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
-  ApiMeliCallbackRoute: typeof ApiMeliCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -242,13 +229,6 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/meli/callback': {
-      id: '/api/meli/callback'
-      path: '/api/meli/callback'
-      fullPath: '/api/meli/callback'
-      preLoaderRoute: typeof ApiMeliCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -358,7 +338,6 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
-  ApiMeliCallbackRoute: ApiMeliCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

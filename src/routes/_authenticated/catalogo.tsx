@@ -46,7 +46,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { brl } from "@/lib/format";
 import { fetchIntegration } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
-import { meliSearch, meliSaveProduct } from "@/lib/meli.functions";
 
 export const Route = createFileRoute("/_authenticated/catalogo")({
   head: () => ({
@@ -59,8 +58,8 @@ export const Route = createFileRoute("/_authenticated/catalogo")({
 });
 
 // ─── Mercado Livre API ──────────────────────────────────────────────────────
-// All Mercado Livre calls go through server functions using the seller's own
-// OAuth token (see src/lib/meli.functions.ts). No token ships to the browser.
+const MELI_ACCESS_TOKEN = import.meta.env['VITE_MELI_ACCESS_TOKEN'] as string | undefined;
+const MELI_API_BASE = "https://api.mercadolivre.com.br";
 
 interface MeliProduct {
   id: string;
@@ -102,7 +101,17 @@ const CATEGORIAS_POPULARES: { id: string; name: string; icon: string }[] = [
 ];
 
 async function fetchMeliCategories(): Promise<{ id: string; name: string }[]> {
-  return CATEGORIAS_POPULARES;
+  if (!MELI_ACCESS_TOKEN) return CATEGORIAS_POPULARES;
+  try {
+    const res = await fetch(`${MELI_API_BASE}/sites/MLB/categories`, {
+      headers: { Authorization: `Bearer ${MELI_ACCESS_TOKEN}` },
+    });
+    if (!res.ok) return CATEGORIAS_POPULARES;
+    const categories: { id: string; name: string }[] = await res.json();
+    return categories.slice(0, 20);
+  } catch {
+    return CATEGORIAS_POPULARES;
+  }
 }
 
 async function fetchMeliProducts(params: {
@@ -112,18 +121,41 @@ async function fetchMeliProducts(params: {
   offset: number;
   limit: number;
 }): Promise<{ items: MeliProduct[]; total: number }> {
-  const r = await meliSearch({
-    data: {
-      q: params.query,
-      category: params.category === "all" ? "" : params.category,
-      sort: params.sort,
-      offset: params.offset,
-      limit: params.limit,
-    },
-  });
-  // Surface the real reason (expired auth, 403 from Mercado Livre, rate limit…)
-  if (!r.ok) throw new Error(r.message);
-  return { items: r.items as unknown as MeliProduct[], total: r.total };
+  if (!MELI_ACCESS_TOKEN) return { items: [], total: 0 };
+
+  try {
+    let url: string;
+    if (params.query) {
+      url = `${MELI_API_BASE}/sites/MLB/search?q=${encodeURIComponent(params.query)}&offset=${params.offset}&limit=${params.limit}`;
+      if (params.category && params.category !== "all") url += `&category=${params.category}`;
+      if (params.sort) url += `&sort=${params.sort}`;
+    } else if (params.category && params.category !== "all") {
+      url = `${MELI_API_BASE}/sites/MLB/search?category=${params.category}&offset=${params.offset}&limit=${params.limit}`;
+      if (params.sort) url += `&sort=${params.sort}`;
+    } else {
+      url = `${MELI_API_BASE}/sites/MLB/search?offset=${params.offset}&limit=${params.limit}`;
+    }
+
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${MELI_ACCESS_TOKEN}` } });
+    if (!res.ok) return { items: [], total: 0 };
+    const data = await res.json();
+    return { items: data.results ?? [], total: data.paging?.total ?? 0 };
+  } catch {
+    return { items: [], total: 0 };
+  }
+}
+
+async function fetchMeliProductDetail(id: string): Promise<MeliProduct | null> {
+  if (!MELI_ACCESS_TOKEN) return null;
+  try {
+    const res = await fetch(`${MELI_API_BASE}/items/${id}`, {
+      headers: { Authorization: `Bearer ${MELI_ACCESS_TOKEN}` },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 // ─── Lucro Estimado ─────────────────────────────────────────────────────────
@@ -296,11 +328,26 @@ function ProductDetailModal({
     if (!uid) return;
     setSaving(true);
     try {
-      // Saved on the server from the official API data (users cannot write
-      // the shared catalog directly).
-      const savedProd = await meliSaveProduct({ data: { itemId: product.id } });
-      if (!savedProd.ok) { toast.error("Erro ao salvar produto", { description: savedProd.message }); setSaving(false); return; }
-      const prod = { id: savedProd.productId };
+      // Salva na tabela products
+      const { data: prod, error: prodErr } = await supabase
+        .from("products")
+        .upsert({
+          external_id: product.id,
+          title: product.title,
+          price: product.price,
+          category: product.category_name || product.category_id,
+          image_url: product.thumbnail || product.pictures?.[0]?.url || null,
+          permalink: product.permalink,
+          rating: product.reviews_rating ?? 0,
+          sold_quantity: product.sold_quantity ?? 0,
+          free_shipping: product.free_shipping,
+          source: "mercadolivre",
+          active: true,
+        }, { onConflict: "external_id" })
+        .select("id")
+        .maybeSingle();
+
+      if (prodErr || !prod) { toast.error("Erro ao salvar produto"); setSaving(false); return; }
 
       // Salva como favorito do usuário com margem
       const { error: favErr } = await supabase
@@ -501,12 +548,7 @@ function ProductDetailModal({
                     toast.error("Conecte sua conta do Mercado Livre primeiro", {
                       description: "Vá em Integrações para conectar sua conta.",
                     });
-                    return;
                   }
-                  toast.info("Publicação ainda não disponível", {
-                    description:
-                      "Para publicar é preciso um produto de fornecedor com fotos e dados próprios (ex.: CJ ou fornecedor nacional). Anúncios de outros vendedores do Mercado Livre não podem ser republicados.",
-                  });
                 }}
                 title={!mlConnected ? "Conecte sua conta do Mercado Livre em Integrações" : ""}
               >
@@ -577,23 +619,22 @@ function CatalogoPage() {
     queryFn: fetchMeliCategories,
   });
 
+  const { data: meliResult, isLoading: meliLoading } = useQuery({
+    queryKey: ["meli-products", search, category, sort, page],
+    queryFn: () =>
+      fetchMeliProducts({ query: search, category, sort: sort === "relevance" ? "" : sort, offset: page * limit, limit }),
+    enabled: Boolean(MELI_ACCESS_TOKEN),
+  });
+
   const { data: integration } = useQuery({
     queryKey: ["integration", uid],
     queryFn: () => fetchIntegration(uid),
     enabled: !!uid,
   });
-  const mlConnected = integration?.status === "connected";
-
-  const { data: meliResult, isLoading: meliLoading, error: meliError, refetch: refetchMeli } = useQuery({
-    queryKey: ["meli-products", search, category, sort, page],
-    queryFn: () =>
-      fetchMeliProducts({ query: search, category, sort: sort === "relevance" ? "" : sort, offset: page * limit, limit }),
-    enabled: mlConnected,
-    retry: false,
-  });
 
   const totalPages = meliResult ? Math.ceil(meliResult.total / limit) : 0;
-  const isMeliConnected = mlConnected;
+  const isMeliConnected = Boolean(MELI_ACCESS_TOKEN);
+  const mlConnected = integration?.status === "connected";
 
   // Transforma MeliProduct em CatalogProduct
   const products: CatalogProduct[] = React.useMemo(() => {
@@ -639,7 +680,7 @@ function CatalogoPage() {
               <p className="text-xs text-white/50">
                 {isMeliConnected
                   ? `${meliResult?.total.toLocaleString("pt-BR") ?? 0} produtos reais do Mercado Livre`
-                  : "Conecte sua conta do Mercado Livre para carregar produtos reais"}
+                  : "Configure VITE_MELI_ACCESS_TOKEN para carregar produtos reais"}
               </p>
             </div>
           </div>
@@ -730,14 +771,6 @@ function CatalogoPage() {
               </div>
             ))}
           </div>
-        ) : meliError ? (
-          <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center space-y-3">
-            <AlertCircle className="mx-auto size-6 text-[#FFD000]" />
-            <p className="text-sm text-white/70">{(meliError as Error).message}</p>
-            <Button size="sm" variant="outline" onClick={() => void refetchMeli()}>
-              Tentar novamente
-            </Button>
-          </div>
         ) : products.length === 0 ? (
           <EmptyState
             icon={Search}
@@ -756,10 +789,9 @@ function CatalogoPage() {
           <div className="rounded-xl border border-[#FFD000]/20 bg-[#FFD000]/5 p-6 text-center space-y-3 mb-6">
             <ShoppingBag className="mx-auto size-8 text-[#FFD000]" />
             <div>
-              <p className="font-semibold text-white">Conecte sua conta do Mercado Livre</p>
+              <p className="font-semibold text-white">Catálogo do Mercado Livre não configurado</p>
               <p className="mt-1 text-sm text-white/50">
-                Os produtos são consultados com a sua própria autorização do Mercado Livre.{" "}
-                <Link to="/integracoes" className="text-[#FFD000] underline underline-offset-2">Ir para Integrações</Link>
+                Para exibir produtos reais, configure <code className="text-xs bg-white/10 px-1 rounded">VITE_MELI_ACCESS_TOKEN</code> no ambiente.
               </p>
               <a
                 href="https://developers.mercadolivre.com.br"
