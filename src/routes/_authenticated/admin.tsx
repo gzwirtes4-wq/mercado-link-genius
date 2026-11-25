@@ -114,9 +114,6 @@ function Admin() {
 
   const createUser = useMutation({
     mutationFn: async () => {
-      const plan = plans.data?.find((p) => p.slug === createPlanSlug);
-      const planId = plan?.id ?? plans.data?.[0]?.id ?? null;
-
       // Create via edge function for consistent setup
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL ?? ""}/functions/v1/create-admin-user`,
@@ -130,15 +127,13 @@ function Admin() {
             email: createEmail,
             password: createPassword,
             name: createName,
-            plan_id: planId,
             plan_slug: createPlanSlug,
           }),
         },
       );
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Erro desconhecido" }));
-        throw new Error(err.error ?? "Erro ao criar usuário");
-      }
+      const result = await res.json().catch(() => ({ error: "Resposta inválida do servidor" }));
+      if (!res.ok) throw new Error(result.error ?? "Erro ao criar usuário");
+      if (result.warning) toast.warning(result.warning);
     },
     onSuccess: () => {
       toast.success("Usuário criado com sucesso");
@@ -155,10 +150,11 @@ function Admin() {
   // ── Toggle active ────────────────────────────────────────────────────────
   const toggleActive = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
-      await supabase
+      const { error } = await supabase
         .from("profiles")
         .update({ is_active: isActive })
         .eq("id", id);
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       toast.success("Status atualizado");
@@ -170,10 +166,11 @@ function Admin() {
   // ── Validate user ────────────────────────────────────────────────────────
   const validateUser = useMutation({
     mutationFn: async (id: string) => {
-      await supabase
+      const { error } = await supabase
         .from("profiles")
         .update({ validated_at: new Date().toISOString(), is_active: true })
         .eq("id", id);
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       toast.success("Usuário validado");
@@ -185,20 +182,16 @@ function Admin() {
   // ── Set plan ──────────────────────────────────────────────────────────────
   const setPlan = useMutation({
     mutationFn: async () => {
-      if (!selectedUser || !selectedPlanId) return;
+      if (!selectedUser || !selectedPlanId) throw new Error("Selecione um plano");
       const plan = plans.data?.find((p) => p.id === selectedPlanId);
-      if (!plan) return;
+      if (!plan) throw new Error("Plano não encontrado");
 
-      const isLifetime = plan.slug === "lifetime";
-      await supabase.from("subscriptions").upsert(
-        {
-          user_id: selectedUser.id,
-          plan_id: selectedPlanId,
-          status: "active",
-          current_period_end: isLifetime ? null : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        { onConflict: "user_id" },
-      );
+      // Expiry is computed by the database (lifetime = no expiry, others = 30 days).
+      const { error } = await supabase.rpc("admin_set_plan", {
+        _target: selectedUser.id,
+        _plan_slug: plan.slug,
+      });
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       toast.success("Plano atualizado");
@@ -447,8 +440,8 @@ function Admin() {
                 type="password"
                 value={createPassword}
                 onChange={(e) => setCreatePassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
-                minLength={6}
+                placeholder="Mínimo 8 caracteres"
+                minLength={8}
               />
             </div>
             <div className="space-y-2">

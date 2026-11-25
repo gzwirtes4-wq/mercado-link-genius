@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { meliStatus, meliStartAuth, meliDisconnect } from "@/lib/meli.functions";
 
 export const Route = createFileRoute("/_authenticated/integracoes")({
   head: () => ({
@@ -20,120 +21,65 @@ export const Route = createFileRoute("/_authenticated/integracoes")({
   component: IntegrationsPage,
 });
 
-// ─── Mercado Livre OAuth Config ─────────────────────────────────────────────
-// Para ativar, configure estas variáveis no ambiente:
-// VITE_MELI_CLIENT_ID=seu_client_id
-// VITE_MELI_REDIRECT_URI=https://sua-url.com/auth/callback/meli
-//
+// ─── Mercado Livre OAuth ─────────────────────────────────────────────────────
+// The whole OAuth flow runs on the server (src/lib/meli.server.ts). Configure
+// these SERVER secrets (never VITE_*): MELI_CLIENT_ID, MELI_CLIENT_SECRET,
+// MELI_REDIRECT_URI = https://<seu-dominio>/api/meli/callback
 // Docs: https://developers.mercadolivre.com.br/pt_br/autenticacao-e-autorizacao
-//
-const MELI_CLIENT_ID = import.meta.env['VITE_MELI_CLIENT_ID'] as string | undefined;
-const MELI_REDIRECT_URI = import.meta.env['VITE_MELI_REDIRECT_URI'] as string | undefined;
-const MELI_AUTH_URL = "https://auth.mercadolivre.com.br/authorization";
-const MELI_TOKEN_URL = "https://api.mercadolivre.com/oauth/token";
-
-function getMeliAuthUrl(): string {
-  if (!MELI_CLIENT_ID || !MELI_REDIRECT_URI) return "";
-  const params = new URLSearchParams({
-    response_type: "code",
-    client_id: MELI_CLIENT_ID,
-    redirect_uri: MELI_REDIRECT_URI,
-  });
-  return `${MELI_AUTH_URL}?${params.toString()}`;
-}
-
-// ─── Types ───────────────────────────────────────────────────────────────────
-type Integration = {
-  id: string;
-  provider: string;
-  status: string;
-  account_identifier: string | null;
-  connected_at: string | null;
-  last_error: string | null;
-  updated_at: string;
-  user_id: string;
-};
-
-// ─── Fetch Integration ───────────────────────────────────────────────────────
-async function fetchIntegration(userId: string): Promise<Integration | null> {
-  const { data } = await supabase
-    .from("integrations")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("provider", "mercadolivre")
-    .maybeSingle();
-  return data as Integration | null;
-}
-
-// ─── Exchange code for token (server-side only in production) ───────────────
-async function exchangeMeliCode(code: string): Promise<{ access_token: string; user_id: string } | null> {
-  if (!MELI_CLIENT_ID || !MELI_REDIRECT_URI) return null;
-  try {
-    const res = await fetch(MELI_TOKEN_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "authorization_code",
-        client_id: MELI_CLIENT_ID,
-        client_secret: import.meta.env['VITE_MELI_CLIENT_SECRET'] ?? "",
-        code,
-        redirect_uri: MELI_REDIRECT_URI,
-      }),
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return { access_token: json.access_token, user_id: json.user_id };
-  } catch {
-    return null;
-  }
-}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 function IntegrationsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const uid = user?.id ?? "";
+  const getStatus = useServerFn(meliStatus);
+  const startAuth = useServerFn(meliStartAuth);
+  const doDisconnect = useServerFn(meliDisconnect);
 
-  const { data: integration, isLoading } = useQuery({
-    queryKey: ["integration", uid],
-    queryFn: () => fetchIntegration(uid),
+  const { data: status, isLoading, isError, refetch } = useQuery({
+    queryKey: ["meli-status", uid],
+    queryFn: () => getStatus(),
     enabled: !!uid,
   });
+  const integration = status?.integration ?? null;
+
+  // Result of the OAuth callback (?meli=ok|erro&motivo=...)
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("meli");
+    if (!result) return;
+    if (result === "ok") toast.success("Conta do Mercado Livre conectada");
+    else toast.error("Não foi possível conectar", { description: params.get("motivo") ?? undefined });
+    window.history.replaceState(null, "", window.location.pathname);
+    void queryClient.invalidateQueries({ queryKey: ["meli-status"] });
+    void queryClient.invalidateQueries({ queryKey: ["integration"] });
+  }, [queryClient]);
 
   const connectMutation = useMutation({
     mutationFn: async () => {
-      const authUrl = getMeliAuthUrl();
-      if (!authUrl) throw new Error("CONFIG_MISSING");
-      // Armazena state para verificar no callback
-      const state = Math.random().toString(36).slice(2);
-      sessionStorage.setItem("meli_oauth_state", state);
-      window.location.href = `${authUrl}&state=${state}`;
+      const r = await startAuth();
+      if (!r.ok) throw new Error(r.message);
+      window.location.href = r.url;
     },
-    onError: (err) => {
-      if ((err as Error).message === "CONFIG_MISSING") {
-        toast.error("Configuração incompleta", {
-          description: "Adicione VITE_MELI_CLIENT_ID e VITE_MELI_REDIRECT_URI no ambiente.",
-        });
-      }
-    },
+    onError: (err: Error) => toast.error("Não foi possível iniciar a conexão", { description: err.message }),
   });
 
   const disconnectMutation = useMutation({
     mutationFn: async () => {
-      await supabase
-        .from("integrations")
-        .update({ status: "disconnected", account_identifier: null })
-        .eq("user_id", uid)
-        .eq("provider", "mercadolivre");
+      const r = await doDisconnect();
+      if (!r.ok) throw new Error(r.message);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["integration", uid] });
+      queryClient.invalidateQueries({ queryKey: ["meli-status"] });
+      queryClient.invalidateQueries({ queryKey: ["integration"] });
       toast.success("Conta desconectada");
     },
+    onError: (err: Error) => toast.error("Falha ao desconectar", { description: err.message }),
   });
 
   const connected = integration?.status === "connected";
-  const hasConfig = Boolean(MELI_CLIENT_ID && MELI_REDIRECT_URI);
+  const expired = integration?.status === "expired";
+  const hasConfig = Boolean(status?.configured);
 
   return (
     <AppLayout
@@ -164,6 +110,11 @@ function IntegrationsPage() {
                   <CheckCircle2 className="mr-1 size-3" />
                   Conectado
                 </Badge>
+              ) : expired ? (
+                <Badge variant="secondary" className="bg-destructive/10 text-destructive border-destructive/20">
+                  <AlertCircle className="mr-1 size-3" />
+                  Autorização expirada
+                </Badge>
               ) : (
                 <Badge variant="secondary" className="bg-muted text-muted-foreground">
                   Não conectado
@@ -182,7 +133,8 @@ function IntegrationsPage() {
                   </div>
                   {integration?.account_identifier && (
                     <p className="text-xs text-muted-foreground pl-6">
-                      ID da conta: {integration.account_identifier}
+                      Conta: {integration.nickname ?? integration.account_identifier}
+                      {integration.ml_user_id ? ` (ID ${integration.ml_user_id})` : ""}
                     </p>
                   )}
                   {integration?.connected_at && (
@@ -211,8 +163,18 @@ function IntegrationsPage() {
                   </Button>
                 </div>
               </>
+            ) : isError ? (
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
+                <p className="text-sm text-white/60">Não foi possível carregar o status da integração.</p>
+                <Button size="sm" variant="outline" onClick={() => void refetch()}>
+                  Tentar novamente
+                </Button>
+              </div>
             ) : hasConfig ? (
               <>
+                {expired && integration?.last_error && (
+                  <p className="text-xs text-destructive">{integration.last_error}</p>
+                )}
                 <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
                   <div className="flex items-start gap-2">
                     <ShieldCheck className="size-4 text-[#FFD000] mt-0.5" />
@@ -243,13 +205,16 @@ function IntegrationsPage() {
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-[#FFD000]">Configuração necessária</p>
                       <p className="text-xs text-white/50">
-                        Para ativar a conexão com o Mercado Livre, adicione as seguintes variáveis no ambiente:
+                        Para ativar a conexão com o Mercado Livre, adicione os seguintes secrets no servidor:
                       </p>
                       <ul className="mt-2 space-y-1 text-xs text-white/40 font-mono">
-                        <li>• VITE_MELI_CLIENT_ID</li>
-                        <li>• VITE_MELI_REDIRECT_URI</li>
-                        <li>• VITE_MELI_CLIENT_SECRET (para troca de código)</li>
+                        <li>• MELI_CLIENT_ID</li>
+                        <li>• MELI_CLIENT_SECRET</li>
+                        <li>• MELI_REDIRECT_URI (…/api/meli/callback)</li>
                       </ul>
+                      <p className="text-xs text-white/40">
+                        Configure como secrets do servidor (Lovable Cloud), nunca com prefixo VITE_.
+                      </p>
                       <a
                         href="https://developers.mercadolivre.com.br/pt_br/autenticacao-e-autorizacao"
                         target="_blank"
