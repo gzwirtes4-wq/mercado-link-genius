@@ -1,0 +1,50 @@
+# Prints das telas públicas (desktop e celular) a partir do build de produção.
+# Serve como teste de interface: registra erros de console e rolagem horizontal.
+# Os prints ficam em Actions → execução → Artifacts → "screenshots".
+name: Preview (prints)
+
+on:
+  push:
+    branches: ["**"]
+    paths: ["src/**", "public/**", "package.json", "bun.lock", "vite.config.ts", "tests/ui/**", ".github/workflows/preview.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: preview-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - name: Servir o build
+        run: |
+          (bun run preview -- --host 127.0.0.1 --port 4173 --strictPort > preview.log 2>&1 &)
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:4173/ >/dev/null && exit 0; sleep 1; done
+          cat preview.log; exit 1
+      - name: Playwright (fora do projeto, sem alterar package.json)
+        run: |
+          mkdir -p /tmp/pw && cd /tmp/pw && npm init -y >/dev/null && npm i playwright@1 >/dev/null
+          npx playwright install --with-deps chromium
+      - name: Tirar prints
+        run: |
+          cp tests/ui/screenshots.mjs /tmp/pw/
+          cd /tmp/pw && OUT_DIR="$GITHUB_WORKSPACE/screenshots" node screenshots.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: |
+            screenshots/
+            preview.log
+          retention-days: 14
