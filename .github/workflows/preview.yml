@@ -27,10 +27,14 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bun run build
-      - name: Servir o build
+      - name: Servir o build no runtime da Cloudflare (workerd, local)
+        env:
+          WRANGLER_SEND_METRICS: "false"
+          CI: "true"
         run: |
-          (bun run preview -- --host 127.0.0.1 --port 4173 --strictPort > preview.log 2>&1 &)
-          for i in $(seq 1 60); do curl -sf http://127.0.0.1:4173/ >/dev/null && exit 0; sleep 1; done
+          ls .output/server
+          (npx -y wrangler@4 dev --config .output/server/wrangler.json --ip 127.0.0.1 --port 4173 > preview.log 2>&1 &)
+          for i in $(seq 1 90); do curl -sf -o /dev/null http://127.0.0.1:4173/ && exit 0; sleep 2; done
           cat preview.log; exit 1
       - name: Playwright (fora do projeto, sem alterar package.json)
         run: |
