@@ -200,3 +200,19 @@ ALTER TABLE public.api_usage_log ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS api_usage_log_admin ON public.api_usage_log;
 CREATE POLICY api_usage_log_admin ON public.api_usage_log FOR SELECT TO authenticated
   USING (public.has_role(auth.uid(), 'admin'));
+
+-- ── Support tickets: users cannot pre-fill the admin reply when opening one ──
+CREATE OR REPLACE FUNCTION public.sanitize_new_ticket()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF auth.uid() IS NOT NULL AND NOT public.has_role(auth.uid(), 'admin') THEN
+    NEW.admin_response := NULL;
+    NEW.status := 'aberto';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.sanitize_new_ticket() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS support_tickets_sanitize_insert ON public.support_tickets;
+CREATE TRIGGER support_tickets_sanitize_insert BEFORE INSERT ON public.support_tickets
+  FOR EACH ROW EXECUTE FUNCTION public.sanitize_new_ticket();

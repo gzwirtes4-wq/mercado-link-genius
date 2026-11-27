@@ -62,4 +62,4 @@ jobs:
           ./tests/db/rls_test.sh rls_check | tee result.txt
           ./tests/db/quota_test.sh rls_check | tee -a result.txt
           if grep -q '^FAIL' result.txt; then exit 1; fi
-          test "$(grep -c '^PASS' result.txt)" -ge 23
+          test "$(grep -c '^PASS' result.txt)" -ge 24

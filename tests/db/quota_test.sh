@@ -6,6 +6,8 @@ q() { $P -c "SET ROLE service_role; SELECT public.consume_quota('$U','publish','
 chk() { [ "$2" = "$3" ] && echo "PASS | $1" || echo "FAIL | $1 (esperado=$3 obtido=$2)"; }
 $P >/dev/null <<SQL
 INSERT INTO auth.users(id,email) VALUES ('$U','quota@x.com') ON CONFLICT DO NOTHING;
+DELETE FROM public.usage_events WHERE user_id = '$U';
+DELETE FROM public.subscriptions WHERE user_id = '$U';
 INSERT INTO public.plans(slug,name,price_cents,daily_publish_limit) VALUES ('teste-cota','Teste cota',0,2) ON CONFLICT (slug) DO UPDATE SET daily_publish_limit=2;
 SQL
 chk "sem assinatura ativa é recusado" "$(q a1 reason)" "sem_assinatura_ativa"

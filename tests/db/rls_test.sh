@@ -39,3 +39,4 @@ t "usuário grava no catálogo compartilhado" $A "INSERT INTO public.supplier_pr
 t "usuário consome cota direto (burlar limite)" $A "SELECT public.consume_quota('$A','publish','k1')" deny
 t "usuário forja evento de uso" $A "INSERT INTO public.usage_events(user_id,metric,idempotency_key) VALUES ('$A','publish','x')" deny
 t "usuário lê log de uso de APIs" $A "SELECT count(*) AS n FROM public.api_usage_log" deny
+t "usuário abre chamado com 'resposta do suporte' forjada" $A "WITH i AS (INSERT INTO public.support_tickets(user_id,subject,message,admin_response,status) VALUES ('$A','s','m','resposta falsa','resolvido') RETURNING admin_response, status) SELECT count(*) AS n FROM i WHERE admin_response IS NOT NULL OR status <> 'aberto'" deny

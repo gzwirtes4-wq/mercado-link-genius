@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -116,6 +117,8 @@ function Admin() {
   });
 
   // ── Dialogs state ─────────────────────────────────────────────────────────
+  type TicketRow = NonNullable<typeof tickets.data>[number];
+  const [replyTicket, setReplyTicket] = React.useState<TicketRow | null>(null);
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editPlanOpen, setEditPlanOpen] = React.useState(false);
   const [selectedUser, setSelectedUser] = React.useState<{
@@ -393,6 +396,7 @@ function Admin() {
                 <TableHead>Assunto</TableHead>
                 <TableHead>Prioridade</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -403,11 +407,21 @@ function Admin() {
                   <TableCell>
                     <Badge variant="secondary">{t.status}</Badge>
                   </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8"
+                      onClick={() => setReplyTicket(t)}
+                    >
+                      Responder
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
               {tickets.data?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-8 text-sm text-muted-foreground">
+                  <TableCell colSpan={4} className="text-center py-8 text-sm text-muted-foreground">
                     Nenhum chamado
                   </TableCell>
                 </TableRow>
@@ -551,6 +565,7 @@ function Admin() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <TicketReplyDialog ticket={replyTicket} onClose={() => setReplyTicket(null)} />
     </AppLayout>
   );
 }
@@ -613,5 +628,104 @@ function IntegrationsStatusCard() {
         </ul>
       )}
     </div>
+  );
+}
+
+// ── Ticket reply (admin) ────────────────────────────────────────────────────
+const TICKET_STATUSES = [
+  { value: "aberto", label: "Aberto" },
+  { value: "em_andamento", label: "Em andamento" },
+  { value: "resolvido", label: "Resolvido" },
+];
+
+function TicketReplyDialog({
+  ticket,
+  onClose,
+}: {
+  ticket: {
+    id: string;
+    subject: string;
+    message: string;
+    status: string;
+    admin_response: string | null;
+  } | null;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [response, setResponse] = React.useState("");
+  const [status, setStatus] = React.useState("em_andamento");
+
+  React.useEffect(() => {
+    if (!ticket) return;
+    setResponse(ticket.admin_response ?? "");
+    setStatus(ticket.status === "aberto" ? "em_andamento" : ticket.status);
+  }, [ticket]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!ticket) return;
+      const text = response.trim();
+      if (!text) throw new Error("Escreva uma resposta");
+      if (text.length > 5000) throw new Error("Resposta muito longa (máx. 5000 caracteres)");
+      const { error } = await supabase
+        .from("support_tickets")
+        .update({ admin_response: text, status })
+        .eq("id", ticket.id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-tickets"] });
+      toast.success("Resposta enviada");
+      onClose();
+    },
+    onError: (e: Error) => toast.error("Não foi possível responder", { description: e.message }),
+  });
+
+  return (
+    <Dialog open={!!ticket} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{ticket?.subject}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <p className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-sm">
+            {ticket?.message}
+          </p>
+          <div className="space-y-2">
+            <Label htmlFor="ticket-response">Resposta</Label>
+            <Textarea
+              id="ticket-response"
+              rows={5}
+              maxLength={5000}
+              value={response}
+              onChange={(e) => setResponse(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ticket-status">Status</Label>
+            <select
+              id="ticket-status"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              {TICKET_STATUSES.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={() => save.mutate()} disabled={save.isPending}>
+            {save.isPending ? "Enviando..." : "Enviar resposta"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
