@@ -687,26 +687,24 @@ function CatalogoPage() {
   // Transforma MeliProduct em CatalogProduct
   const products: CatalogProduct[] = React.useMemo(() => {
     if (!meliResult?.items) return [];
-    return meliResult.items.map(
-      (p): CatalogProduct => ({
-        id: p.id,
-        title: p.title,
-        price: p.price,
-        original_price: p.original_price,
-        thumbnail: p.thumbnail,
-        pictures: p.pictures || [],
-        permalink: p.permalink,
-        category_id: p.category_id,
-        category_name: p.category_id,
-        sold_quantity: p.sold_quantity,
-        reviews_rating: p.reviews_rating ?? 0,
-        condition: p.condition,
-        free_shipping: p.shipping?.free_shipping ?? false,
-        seller_nickname: p.seller?.nickname ?? "",
-        seller_level: p.seller?.seller_reputation?.level_id ?? "",
-        source: "mercadolivre",
-      }),
-    );
+    return meliResult.items.map((p): CatalogProduct => ({
+      id: p.id,
+      title: p.title,
+      price: p.price,
+      original_price: p.original_price,
+      thumbnail: p.thumbnail,
+      pictures: p.pictures || [],
+      permalink: p.permalink,
+      category_id: p.category_id,
+      category_name: p.category_id,
+      sold_quantity: p.sold_quantity,
+      reviews_rating: p.reviews_rating ?? 0,
+      condition: p.condition,
+      free_shipping: p.shipping?.free_shipping ?? false,
+      seller_nickname: p.seller?.nickname ?? "",
+      seller_level: p.seller?.seller_reputation?.level_id ?? "",
+      source: "mercadolivre",
+    }));
   }, [meliResult]);
 
   return (

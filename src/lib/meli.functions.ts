@@ -89,16 +89,14 @@ const ID_RE = /^[A-Z]{3}\d+$/;
 /** Searches Mercado Livre listings with the user's own token. */
 export const meliSearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator(
-    (d: SearchInput): Required<SearchInput> => ({
-      q: typeof d?.q === "string" ? d.q.trim().slice(0, 120) : "",
-      category: typeof d?.category === "string" && ID_RE.test(d.category) ? d.category : "",
-      sort: typeof d?.sort === "string" && /^[a-z_]{1,30}$/.test(d.sort) ? d.sort : "",
-      sellerId: typeof d?.sellerId === "string" && /^\d{1,15}$/.test(d.sellerId) ? d.sellerId : "",
-      offset: Math.max(0, Math.min(Number(d?.offset) || 0, 1000)),
-      limit: Math.max(1, Math.min(Number(d?.limit) || 24, 50)),
-    }),
-  )
+  .validator((d: SearchInput): Required<SearchInput> => ({
+    q: typeof d?.q === "string" ? d.q.trim().slice(0, 120) : "",
+    category: typeof d?.category === "string" && ID_RE.test(d.category) ? d.category : "",
+    sort: typeof d?.sort === "string" && /^[a-z_]{1,30}$/.test(d.sort) ? d.sort : "",
+    sellerId: typeof d?.sellerId === "string" && /^\d{1,15}$/.test(d.sellerId) ? d.sellerId : "",
+    offset: Math.max(0, Math.min(Number(d?.offset) || 0, 1000)),
+    limit: Math.max(1, Math.min(Number(d?.limit) || 24, 50)),
+  }))
   .handler(
     async ({ data, context }): Promise<Result<{ items: MeliSearchItem[]; total: number }>> => {
       try {

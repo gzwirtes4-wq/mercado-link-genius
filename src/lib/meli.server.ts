@@ -142,17 +142,15 @@ async function tokenRequest(params: Record<string, string>): Promise<TokenRespon
 
 async function storeTokens(userId: string, t: TokenResponse) {
   const expiresAt = new Date(Date.now() + t.expires_in * 1000).toISOString();
-  const { error } = await supabaseAdmin
-    .from("meli_tokens")
-    .upsert(
-      {
-        user_id: userId,
-        access_token: t.access_token,
-        refresh_token: t.refresh_token,
-        expires_at: expiresAt,
-      },
-      { onConflict: "user_id" },
-    );
+  const { error } = await supabaseAdmin.from("meli_tokens").upsert(
+    {
+      user_id: userId,
+      access_token: t.access_token,
+      refresh_token: t.refresh_token,
+      expires_at: expiresAt,
+    },
+    { onConflict: "user_id" },
+  );
   if (error) throw new MeliError("api_error", "Falha ao salvar credenciais");
   return expiresAt;
 }

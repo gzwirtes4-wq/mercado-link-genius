@@ -14,7 +14,9 @@ import { ArrowRight, Check, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
-  validateSearch: (search: Record<string, unknown>): { step?: string; mode?: string } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { step?: string | undefined; mode?: string | undefined } => ({
     step: typeof search["step"] === "string" ? (search["step"] as string) : undefined,
     mode: typeof search["mode"] === "string" ? (search["mode"] as string) : undefined,
   }),
@@ -39,6 +41,8 @@ export const Route = createFileRoute("/auth")({
   }),
   component: AuthPage,
 });
+
+const GOOGLE_VIA_SUPABASE = import.meta.env["VITE_GOOGLE_AUTH_VIA_SUPABASE"] === "true";
 
 // Public checkout links (safe to expose). Configure in the environment:
 //   VITE_CHECKOUT_URL_MONTHLY, VITE_CHECKOUT_URL_LIFETIME
@@ -170,6 +174,17 @@ function AuthPage() {
   };
 
   const handleGoogle = async () => {
+    // Default: Google sign-in brokered by Lovable Cloud (works only while the
+    // backend is on Lovable Cloud). After moving to your own Supabase project,
+    // enable the Google provider there and set VITE_GOOGLE_AUTH_VIA_SUPABASE=true.
+    if (GOOGLE_VIA_SUPABASE) {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: `${window.location.origin}/dashboard` },
+      });
+      if (error) toast.error("Falha ao entrar com Google", { description: error.message });
+      return; // the browser is redirected to Google
+    }
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
     });
