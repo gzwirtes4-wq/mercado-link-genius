@@ -15,8 +15,8 @@ import { ArrowRight, Check, ShieldCheck } from "lucide-react";
 export const Route = createFileRoute("/auth")({
   ssr: false,
   validateSearch: (search: Record<string, unknown>): { step?: string; mode?: string } => ({
-    step: typeof search['step'] === "string" ? (search['step'] as string) : undefined,
-    mode: typeof search['mode'] === "string" ? (search['mode'] as string) : undefined,
+    step: typeof search["step"] === "string" ? (search["step"] as string) : undefined,
+    mode: typeof search["mode"] === "string" ? (search["mode"] as string) : undefined,
   }),
   head: () => ({
     meta: [
@@ -306,8 +306,8 @@ function AuthPage() {
 
           <div className="mt-8 flex flex-col items-center gap-3 text-center">
             <p className="text-xs text-white/40">
-              Após a confirmação do pagamento, seu acesso é liberado nesta mesma conta
-              ({session?.user?.email}). Use o mesmo e-mail no checkout.
+              Após a confirmação do pagamento, seu acesso é liberado nesta mesma conta (
+              {session?.user?.email}). Use o mesmo e-mail no checkout.
             </p>
             <Button
               variant="ghost"
@@ -337,8 +337,9 @@ function AuthPage() {
             Transforme produtos em oportunidades de vendas
           </h2>
           <p className="mt-4 text-sm text-white/60">
-            Organize seu catálogo, gere links oficiais de afiliado e acompanhe suas divulgações em um painel
-            só. Resultados dependem do seu trabalho e da sua audiência — aqui você tem as ferramentas.
+            Organize seu catálogo, gere links oficiais de afiliado e acompanhe suas divulgações em
+            um painel só. Resultados dependem do seu trabalho e da sua audiência — aqui você tem as
+            ferramentas.
           </p>
         </div>
         <p className="flex items-start gap-2 text-xs text-white/40">
@@ -364,33 +365,80 @@ function AuthPage() {
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="rec-email" className="text-white/70">E-mail</Label>
-                <Input id="rec-email" name="email" type="email" required placeholder="voce@email.com" className="bg-white/5 border-white/10 text-white placeholder:text-white/30" />
+                <Label htmlFor="rec-email" className="text-white/70">
+                  E-mail
+                </Label>
+                <Input
+                  id="rec-email"
+                  name="email"
+                  type="email"
+                  required
+                  placeholder="voce@email.com"
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                />
               </div>
-              <Button className="w-full bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold" disabled={busy}>
+              <Button
+                className="w-full bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold"
+                disabled={busy}
+              >
                 Enviar link de recuperação
               </Button>
-              <Button type="button" variant="ghost" className="w-full text-white/50 hover:text-white hover:bg-white/10" onClick={() => setRecovering(false)}>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full text-white/50 hover:text-white hover:bg-white/10"
+                onClick={() => setRecovering(false)}
+              >
                 Voltar ao login
               </Button>
             </form>
           ) : (
             <Tabs value={mode} onValueChange={setMode} className="mt-8">
               <TabsList className="grid w-full grid-cols-2 bg-white/5 border border-white/10">
-                <TabsTrigger value="login" className="data-[state=active]:bg-[#FFD000] data-[state=active]:text-black text-white/60">Entrar</TabsTrigger>
-                <TabsTrigger value="signup" className="data-[state=active]:bg-[#FFD000] data-[state=active]:text-black text-white/60">Criar conta</TabsTrigger>
+                <TabsTrigger
+                  value="login"
+                  className="data-[state=active]:bg-[#FFD000] data-[state=active]:text-black text-white/60"
+                >
+                  Entrar
+                </TabsTrigger>
+                <TabsTrigger
+                  value="signup"
+                  className="data-[state=active]:bg-[#FFD000] data-[state=active]:text-black text-white/60"
+                >
+                  Criar conta
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="login" className="mt-6 space-y-4">
                 <form onSubmit={handleLogin} className="space-y-4">
-                  <h1 className="font-display text-2xl font-semibold text-white">Acesse sua conta</h1>
+                  <h1 className="font-display text-2xl font-semibold text-white">
+                    Acesse sua conta
+                  </h1>
                   <div className="space-y-2">
-                    <Label htmlFor="login-email" className="text-white/70">E-mail</Label>
-                    <Input id="login-email" name="email" type="email" required placeholder="voce@email.com" className="bg-white/5 border-white/10 text-white placeholder:text-white/30" />
+                    <Label htmlFor="login-email" className="text-white/70">
+                      E-mail
+                    </Label>
+                    <Input
+                      id="login-email"
+                      name="email"
+                      type="email"
+                      required
+                      placeholder="voce@email.com"
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="login-password" className="text-white/70">Senha</Label>
-                    <Input id="login-password" name="password" type="password" required minLength={6} className="bg-white/5 border-white/10 text-white placeholder:text-white/30" />
+                    <Label htmlFor="login-password" className="text-white/70">
+                      Senha
+                    </Label>
+                    <Input
+                      id="login-password"
+                      name="password"
+                      type="password"
+                      required
+                      minLength={6}
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                    />
                   </div>
                   <button
                     type="button"
@@ -399,7 +447,10 @@ function AuthPage() {
                   >
                     Esqueci minha senha
                   </button>
-                  <Button className="w-full bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold" disabled={busy}>
+                  <Button
+                    className="w-full bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold"
+                    disabled={busy}
+                  >
                     Entrar
                   </Button>
                 </form>
@@ -409,18 +460,47 @@ function AuthPage() {
                 <form onSubmit={handleSignup} className="space-y-4">
                   <h1 className="font-display text-2xl font-semibold text-white">Crie sua conta</h1>
                   <div className="space-y-2">
-                    <Label htmlFor="su-name" className="text-white/70">Nome completo</Label>
-                    <Input id="su-name" name="full_name" required placeholder="Seu nome" className="bg-white/5 border-white/10 text-white placeholder:text-white/30" />
+                    <Label htmlFor="su-name" className="text-white/70">
+                      Nome completo
+                    </Label>
+                    <Input
+                      id="su-name"
+                      name="full_name"
+                      required
+                      placeholder="Seu nome"
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="su-email" className="text-white/70">E-mail</Label>
-                    <Input id="su-email" name="email" type="email" required placeholder="voce@email.com" className="bg-white/5 border-white/10 text-white placeholder:text-white/30" />
+                    <Label htmlFor="su-email" className="text-white/70">
+                      E-mail
+                    </Label>
+                    <Input
+                      id="su-email"
+                      name="email"
+                      type="email"
+                      required
+                      placeholder="voce@email.com"
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="su-password" className="text-white/70">Senha</Label>
-                    <Input id="su-password" name="password" type="password" required minLength={6} className="bg-white/5 border-white/10 text-white placeholder:text-white/30" />
+                    <Label htmlFor="su-password" className="text-white/70">
+                      Senha
+                    </Label>
+                    <Input
+                      id="su-password"
+                      name="password"
+                      type="password"
+                      required
+                      minLength={6}
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                    />
                   </div>
-                  <Button className="w-full bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold" disabled={busy}>
+                  <Button
+                    className="w-full bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold"
+                    disabled={busy}
+                  >
                     Criar conta
                   </Button>
                 </form>
@@ -431,7 +511,8 @@ function AuthPage() {
           {!recovering && (
             <>
               <div className="my-6 flex items-center gap-3 text-xs text-white/30">
-                <span className="h-px flex-1 bg-white/10" /> ou <span className="h-px flex-1 bg-white/10" />
+                <span className="h-px flex-1 bg-white/10" /> ou{" "}
+                <span className="h-px flex-1 bg-white/10" />
               </div>
               <Button
                 type="button"

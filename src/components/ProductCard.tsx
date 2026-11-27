@@ -19,7 +19,11 @@ export function ProductCard({
 }) {
   return (
     <article className="surface flex flex-col overflow-hidden transition-shadow hover:shadow-[var(--shadow-lift)]">
-      <button type="button" onClick={onOpen} className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="relative aspect-[4/3] w-full overflow-hidden bg-muted"
+      >
         {product.image_url ? (
           <img
             src={product.image_url}
@@ -37,7 +41,11 @@ export function ProductCard({
         <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           {product.category}
         </p>
-        <button type="button" onClick={onOpen} className="mt-1 line-clamp-2 text-left text-sm font-semibold">
+        <button
+          type="button"
+          onClick={onOpen}
+          className="mt-1 line-clamp-2 text-left text-sm font-semibold"
+        >
           {product.title}
         </button>
 

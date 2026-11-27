@@ -85,7 +85,10 @@ Deno.serve(async (req: Request) => {
     });
     if (planErr) {
       return json(
-        { user_id: created.user.id, warning: `Usuário criado, mas o plano não foi aplicado: ${planErr.message}` },
+        {
+          user_id: created.user.id,
+          warning: `Usuário criado, mas o plano não foi aplicado: ${planErr.message}`,
+        },
         207,
       );
     }

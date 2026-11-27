@@ -63,7 +63,9 @@ export const fetchMyLinks = async (userId: string): Promise<AffiliateLink[]> => 
     .eq("user_id", userId);
   if (error) throw error;
   return (data ?? []).map((l) => {
-    const { products, ...rest } = l as typeof l & { products: { external_id: string | null } | null };
+    const { products, ...rest } = l as typeof l & {
+      products: { external_id: string | null } | null;
+    };
     return { ...rest, external_id: products?.external_id ?? null };
   }) as AffiliateLink[];
 };

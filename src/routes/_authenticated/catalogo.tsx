@@ -52,7 +52,11 @@ export const Route = createFileRoute("/_authenticated/catalogo")({
   head: () => ({
     meta: [
       { title: "Catálogo | Mercado Ecommerce" },
-      { name: "description", content: "Catálogo de produtos reais para venda sem estoque. Encontre fornecedores, calcule sua margem e comece a lucrar." },
+      {
+        name: "description",
+        content:
+          "Catálogo de produtos reais para venda sem estoque. Encontre fornecedores, calcule sua margem e comece a lucrar.",
+      },
     ],
   }),
   component: CatalogoPage,
@@ -130,7 +134,11 @@ async function fetchMeliProducts(params: {
 const TAXA_ML = 0.11; // ~11% taxa Mercado Livre
 const TAXA_PAGAMENTO = 0.039; // ~3.9% taxa pagamento
 
-function calcularLucro(precoFornecedor: number, margem: number, taxaFrete: number = 0): {
+function calcularLucro(
+  precoFornecedor: number,
+  margem: number,
+  taxaFrete: number = 0,
+): {
   precoVenda: number;
   lucroBruto: number;
   lucroLiquido: number;
@@ -171,7 +179,15 @@ type SavedProduct = {
   margin: number;
   custom_price: number | null;
   created_at: string;
-  products: { id: string; title: string; price: number; image_url: string | null; permalink: string | null; category: string; source: string } | null;
+  products: {
+    id: string;
+    title: string;
+    price: number;
+    image_url: string | null;
+    permalink: string | null;
+    category: string;
+    source: string;
+  } | null;
 };
 
 // ─── Product Card ─────────────────────────────────────────────────────────────
@@ -190,7 +206,11 @@ function ProductCard({
         className="relative aspect-[4/3] w-full overflow-hidden bg-muted cursor-pointer"
       >
         <img
-          src={product.thumbnail?.replace("-I", "-O") || product.pictures?.[0]?.url?.replace("-I", "-O") || ""}
+          src={
+            product.thumbnail?.replace("-I", "-O") ||
+            product.pictures?.[0]?.url?.replace("-I", "-O") ||
+            ""
+          }
           alt={product.title}
           loading="lazy"
           className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -209,7 +229,10 @@ function ProductCard({
 
       <div className="flex flex-1 flex-col p-4 space-y-2">
         <div className="flex items-start justify-between gap-1">
-          <p className="line-clamp-2 text-left text-sm font-semibold leading-tight cursor-pointer hover:text-primary" onClick={() => onDetails(product)}>
+          <p
+            className="line-clamp-2 text-left text-sm font-semibold leading-tight cursor-pointer hover:text-primary"
+            onClick={() => onDetails(product)}
+          >
             {product.title}
           </p>
         </div>
@@ -226,7 +249,9 @@ function ProductCard({
         <div className="flex items-baseline gap-2">
           <span className="font-display text-xl font-bold text-white">{brl(product.price)}</span>
           {product.original_price && product.original_price > product.price && (
-            <span className="text-xs text-muted-foreground line-through">{brl(product.original_price)}</span>
+            <span className="text-xs text-muted-foreground line-through">
+              {brl(product.original_price)}
+            </span>
           )}
         </div>
 
@@ -239,7 +264,12 @@ function ProductCard({
             <TrendingUp className="size-3 mr-1" /> Calcular Lucro
           </Button>
           {product.permalink && (
-            <Button size="sm" variant="outline" className="w-full border-white/10 text-white hover:bg-white/10 hover:text-white text-xs" asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full border-white/10 text-white hover:bg-white/10 hover:text-white text-xs"
+              asChild
+            >
               <a href={product.permalink} target="_blank" rel="noreferrer">
                 <ExternalLink className="size-3 mr-1" /> Ver fornecedor
               </a>
@@ -288,9 +318,13 @@ function ProductDetailModal({
 
   const precoFornecedor = product.price;
   const useCustom = customPrice !== "" && !isNaN(Number(customPrice)) && Number(customPrice) > 0;
-  const precoVendaCalc = useCustom ? Number(customPrice) : (precoFornecedor * (1 + margin / 100));
+  const precoVendaCalc = useCustom ? Number(customPrice) : precoFornecedor * (1 + margin / 100);
   const taxaFrete = product.free_shipping ? 0 : precoVendaCalc * 0.05;
-  const resultado = calcularLucro(precoFornecedor, useCustom ? ((precoVendaCalc / precoFornecedor - 1) * 100) : margin, taxaFrete);
+  const resultado = calcularLucro(
+    precoFornecedor,
+    useCustom ? (precoVendaCalc / precoFornecedor - 1) * 100 : margin,
+    taxaFrete,
+  );
 
   const handleSalvar = async () => {
     if (!uid) return;
@@ -299,28 +333,40 @@ function ProductDetailModal({
       // Saved on the server from the official API data (users cannot write
       // the shared catalog directly).
       const savedProd = await meliSaveProduct({ data: { itemId: product.id } });
-      if (!savedProd.ok) { toast.error("Erro ao salvar produto", { description: savedProd.message }); setSaving(false); return; }
+      if (!savedProd.ok) {
+        toast.error("Erro ao salvar produto", { description: savedProd.message });
+        setSaving(false);
+        return;
+      }
       const prod = { id: savedProd.productId };
 
       // Salva como favorito do usuário com margem
-      const { error: favErr } = await supabase
-        .from("user_products")
-        .upsert({
+      const { error: favErr } = await supabase.from("user_products").upsert(
+        {
           user_id: uid,
           product_id: prod.id,
           status: "favorito",
-        }, { onConflict: "user_id,product_id" });
+        },
+        { onConflict: "user_id,product_id" },
+      );
 
-      if (favErr) { toast.error("Erro ao favoritar"); setSaving(false); return; }
+      if (favErr) {
+        toast.error("Erro ao favoritar");
+        setSaving(false);
+        return;
+      }
 
       // Salva configuração de margem
-      await supabase.from("affiliate_links").upsert({
-        user_id: uid,
-        product_id: prod.id,
-        url: product.permalink,
-        short_code: Math.random().toString(36).slice(2, 8),
-        clicks: 0,
-      }, { onConflict: "user_id,product_id" });
+      await supabase.from("affiliate_links").upsert(
+        {
+          user_id: uid,
+          product_id: prod.id,
+          url: product.permalink,
+          short_code: Math.random().toString(36).slice(2, 8),
+          clicks: 0,
+        },
+        { onConflict: "user_id,product_id" },
+      );
 
       setSaved(true);
       queryClient.invalidateQueries({ queryKey: ["my-products", uid] });
@@ -348,7 +394,8 @@ function ProductDetailModal({
         <DialogHeader>
           <DialogTitle className="text-left text-base leading-snug">{product.title}</DialogTitle>
           <DialogDescription className="text-left">
-            Fonte: Mercado Livre • {product.seller_nickname || "Vendedor"} • {product.sold_quantity.toLocaleString("pt-BR")} vendidos
+            Fonte: Mercado Livre • {product.seller_nickname || "Vendedor"} •{" "}
+            {product.sold_quantity.toLocaleString("pt-BR")} vendidos
           </DialogDescription>
         </DialogHeader>
 
@@ -377,7 +424,9 @@ function ProductDetailModal({
                     <Truck className="size-3" /> Frete grátis
                   </Badge>
                 ) : (
-                  <Badge variant="secondary" className="text-xs">Frete por conta do cliente</Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    Frete por conta do cliente
+                  </Badge>
                 )}
               </div>
             </div>
@@ -394,14 +443,19 @@ function ProductDetailModal({
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Margem</span>
-                <span className="font-semibold text-white">{useCustom ? "Personalizado" : `${margin}%`}</span>
+                <span className="font-semibold text-white">
+                  {useCustom ? "Personalizado" : `${margin}%`}
+                </span>
               </div>
               <input
                 type="range"
                 min="5"
                 max="200"
                 value={margin}
-                onChange={(e) => { setMargin(Number(e.target.value)); setCustomPrice(""); }}
+                onChange={(e) => {
+                  setMargin(Number(e.target.value));
+                  setCustomPrice("");
+                }}
                 className="w-full accent-[#FFD000]"
               />
               <div className="flex justify-between text-xs text-muted-foreground">
@@ -423,7 +477,12 @@ function ProductDetailModal({
                 className="w-32 text-sm"
               />
               {customPrice && (
-                <Button variant="ghost" size="sm" className="text-xs h-7 px-2" onClick={() => setCustomPrice("")}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs h-7 px-2"
+                  onClick={() => setCustomPrice("")}
+                >
                   <X className="size-3" />
                 </Button>
               )}
@@ -440,26 +499,35 @@ function ProductDetailModal({
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-lg border border-white/10 bg-white/5 p-3">
                 <p className="text-xs text-muted-foreground">Preço de venda</p>
-                <p className="mt-1 font-display text-lg font-bold text-white">{brl(precoVendaCalc)}</p>
+                <p className="mt-1 font-display text-lg font-bold text-white">
+                  {brl(precoVendaCalc)}
+                </p>
               </div>
               <div className="rounded-lg border border-white/10 bg-white/5 p-3">
                 <p className="text-xs text-muted-foreground">Custo (fornecedor)</p>
-                <p className="mt-1 font-display text-lg font-bold text-white">{brl(precoFornecedor)}</p>
+                <p className="mt-1 font-display text-lg font-bold text-white">
+                  {brl(precoFornecedor)}
+                </p>
               </div>
               <div className="rounded-lg border border-white/10 bg-white/5 p-3">
                 <p className="text-xs text-muted-foreground">Taxas (~15%)</p>
-                <p className="mt-1 font-display text-lg font-bold text-red-400">-{brl(resultado.taxaTotal)}</p>
+                <p className="mt-1 font-display text-lg font-bold text-red-400">
+                  -{brl(resultado.taxaTotal)}
+                </p>
               </div>
               <div className="rounded-lg border border-success/30 bg-success/10 p-3">
                 <p className="text-xs text-success">Lucro líquido estimado</p>
-                <p className={`mt-1 font-display text-lg font-bold ${resultado.lucroLiquido >= 0 ? "text-success" : "text-red-400"}`}>
+                <p
+                  className={`mt-1 font-display text-lg font-bold ${resultado.lucroLiquido >= 0 ? "text-success" : "text-red-400"}`}
+                >
                   {brl(resultado.lucroLiquido)}
                 </p>
               </div>
             </div>
 
             <p className="text-xs text-white/40">
-              * Taxas: ~11% Mercado Livre + ~3.9% pagamento + frete (quando aplicável). Valor aproximado.
+              * Taxas: ~11% Mercado Livre + ~3.9% pagamento + frete (quando aplicável). Valor
+              aproximado.
             </p>
           </div>
 
@@ -471,7 +539,11 @@ function ProductDetailModal({
                 onClick={handleSalvar}
                 disabled={saving || saved}
               >
-                {saving ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Plus className="size-4 mr-2" />}
+                {saving ? (
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                ) : (
+                  <Plus className="size-4 mr-2" />
+                )}
                 {saved ? "Salvo!" : "Salvar produto"}
               </Button>
               <Button
@@ -485,7 +557,11 @@ function ProductDetailModal({
             </div>
 
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1 border-white/10 text-white hover:bg-white/10 hover:text-white" asChild>
+              <Button
+                variant="outline"
+                className="flex-1 border-white/10 text-white hover:bg-white/10 hover:text-white"
+                asChild
+              >
                 <a href={product.permalink} target="_blank" rel="noreferrer">
                   <Globe className="size-4 mr-2" /> Ver no fornecedor
                 </a>
@@ -525,23 +601,25 @@ function ProductDetailModal({
               </div>
               <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                 <AdGenerator
-                  product={{
-                    id: product.id,
-                    title: product.title,
-                    price: precoVendaCalc,
-                    original_price: product.original_price,
-                    category: product.category_name || product.category_id,
-                    image_url: product.thumbnail || product.pictures?.[0]?.url || null,
-                    permalink: product.permalink,
-                    rating: product.reviews_rating ?? 0,
-                    reviews_count: 0,
-                    sold_quantity: product.sold_quantity ?? 0,
-                    free_shipping: product.free_shipping,
-                    is_new: product.condition === "new",
-                    source: "mercadolivre",
-                    description: null,
-                    created_at: new Date().toISOString(),
-                  } as never}
+                  product={
+                    {
+                      id: product.id,
+                      title: product.title,
+                      price: precoVendaCalc,
+                      original_price: product.original_price,
+                      category: product.category_name || product.category_id,
+                      image_url: product.thumbnail || product.pictures?.[0]?.url || null,
+                      permalink: product.permalink,
+                      rating: product.reviews_rating ?? 0,
+                      reviews_count: 0,
+                      sold_quantity: product.sold_quantity ?? 0,
+                      free_shipping: product.free_shipping,
+                      is_new: product.condition === "new",
+                      source: "mercadolivre",
+                      description: null,
+                      created_at: new Date().toISOString(),
+                    } as never
+                  }
                   link={product.permalink}
                 />
               </div>
@@ -584,10 +662,21 @@ function CatalogoPage() {
   });
   const mlConnected = integration?.status === "connected";
 
-  const { data: meliResult, isLoading: meliLoading, error: meliError, refetch: refetchMeli } = useQuery({
+  const {
+    data: meliResult,
+    isLoading: meliLoading,
+    error: meliError,
+    refetch: refetchMeli,
+  } = useQuery({
     queryKey: ["meli-products", search, category, sort, page],
     queryFn: () =>
-      fetchMeliProducts({ query: search, category, sort: sort === "relevance" ? "" : sort, offset: page * limit, limit }),
+      fetchMeliProducts({
+        query: search,
+        category,
+        sort: sort === "relevance" ? "" : sort,
+        offset: page * limit,
+        limit,
+      }),
     enabled: mlConnected,
     retry: false,
   });
@@ -598,24 +687,26 @@ function CatalogoPage() {
   // Transforma MeliProduct em CatalogProduct
   const products: CatalogProduct[] = React.useMemo(() => {
     if (!meliResult?.items) return [];
-    return meliResult.items.map((p): CatalogProduct => ({
-      id: p.id,
-      title: p.title,
-      price: p.price,
-      original_price: p.original_price,
-      thumbnail: p.thumbnail,
-      pictures: p.pictures || [],
-      permalink: p.permalink,
-      category_id: p.category_id,
-      category_name: p.category_id,
-      sold_quantity: p.sold_quantity,
-      reviews_rating: p.reviews_rating ?? 0,
-      condition: p.condition,
-      free_shipping: p.shipping?.free_shipping ?? false,
-      seller_nickname: p.seller?.nickname ?? "",
-      seller_level: p.seller?.seller_reputation?.level_id ?? "",
-      source: "mercadolivre",
-    }));
+    return meliResult.items.map(
+      (p): CatalogProduct => ({
+        id: p.id,
+        title: p.title,
+        price: p.price,
+        original_price: p.original_price,
+        thumbnail: p.thumbnail,
+        pictures: p.pictures || [],
+        permalink: p.permalink,
+        category_id: p.category_id,
+        category_name: p.category_id,
+        sold_quantity: p.sold_quantity,
+        reviews_rating: p.reviews_rating ?? 0,
+        condition: p.condition,
+        free_shipping: p.shipping?.free_shipping ?? false,
+        seller_nickname: p.seller?.nickname ?? "",
+        seller_level: p.seller?.seller_reputation?.level_id ?? "",
+        source: "mercadolivre",
+      }),
+    );
   }, [meliResult]);
 
   return (
@@ -666,23 +757,40 @@ function CatalogoPage() {
             <Input
               placeholder="Buscar produtos, marcas, categorias..."
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(0);
+              }}
               className="pl-9"
             />
           </div>
           <div className="flex gap-2">
-            <Select value={category} onValueChange={(v) => { setCategory(v); setPage(0); }}>
+            <Select
+              value={category}
+              onValueChange={(v) => {
+                setCategory(v);
+                setPage(0);
+              }}
+            >
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Categoria" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as categorias</SelectItem>
                 {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Select value={sort} onValueChange={(v) => { setSort(v); setPage(0); }}>
+            <Select
+              value={sort}
+              onValueChange={(v) => {
+                setSort(v);
+                setPage(0);
+              }}
+            >
               <SelectTrigger className="w-[170px]">
                 <SelectValue placeholder="Ordenar" />
               </SelectTrigger>
@@ -703,7 +811,10 @@ function CatalogoPage() {
               <button
                 key={cat.id}
                 type="button"
-                onClick={() => { setCategory(cat.id); setPage(0); }}
+                onClick={() => {
+                  setCategory(cat.id);
+                  setPage(0);
+                }}
                 className={
                   category === cat.id
                     ? "rounded-full bg-[#FFD000] px-3 py-1 text-xs font-medium text-black transition-all"
@@ -759,7 +870,9 @@ function CatalogoPage() {
               <p className="font-semibold text-white">Conecte sua conta do Mercado Livre</p>
               <p className="mt-1 text-sm text-white/50">
                 Os produtos são consultados com a sua própria autorização do Mercado Livre.{" "}
-                <Link to="/integracoes" className="text-[#FFD000] underline underline-offset-2">Ir para Integrações</Link>
+                <Link to="/integracoes" className="text-[#FFD000] underline underline-offset-2">
+                  Ir para Integrações
+                </Link>
               </p>
               <a
                 href="https://developers.mercadolivre.com.br"

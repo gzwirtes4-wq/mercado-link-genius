@@ -7,7 +7,14 @@ import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useAuth } from "@/hooks/useAuth";
 import { brl, shortDate } from "@/lib/format";
 import { fetchIntegration, fetchOrders } from "@/lib/queries";
@@ -30,8 +37,16 @@ function Pedidos() {
   const { user } = useAuth();
   const uid = user?.id ?? "";
   const [tab, setTab] = React.useState("todos");
-  const orders = useQuery({ queryKey: ["orders", uid], queryFn: () => fetchOrders(uid), enabled: !!uid });
-  const integration = useQuery({ queryKey: ["integration", uid], queryFn: () => fetchIntegration(uid), enabled: !!uid });
+  const orders = useQuery({
+    queryKey: ["orders", uid],
+    queryFn: () => fetchOrders(uid),
+    enabled: !!uid,
+  });
+  const integration = useQuery({
+    queryKey: ["integration", uid],
+    queryFn: () => fetchIntegration(uid),
+    enabled: !!uid,
+  });
   const connected = integration.data?.status === "connected";
 
   const rows = (orders.data ?? []).filter((o) => (tab === "todos" ? true : o.status === tab));
@@ -79,7 +94,9 @@ function Pedidos() {
             <TableBody>
               {rows.map((o) => (
                 <TableRow key={o.id}>
-                  <TableCell className="font-medium">{o.external_order_id ?? o.id.slice(0, 8)}</TableCell>
+                  <TableCell className="font-medium">
+                    {o.external_order_id ?? o.id.slice(0, 8)}
+                  </TableCell>
                   <TableCell>{o.product_title}</TableCell>
                   <TableCell>{shortDate(o.ordered_at)}</TableCell>
                   <TableCell>{brl(Number(o.amount))}</TableCell>

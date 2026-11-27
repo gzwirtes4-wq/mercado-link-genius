@@ -1,7 +1,17 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ShieldAlert, Plus, CheckCircle2, XCircle, ShieldCheck, Loader2, UserCog, X, Check } from "lucide-react";
+import {
+  ShieldAlert,
+  Plus,
+  CheckCircle2,
+  XCircle,
+  ShieldCheck,
+  Loader2,
+  UserCog,
+  X,
+  Check,
+} from "lucide-react";
 import { toast } from "sonner";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { EmptyState } from "@/components/EmptyState";
@@ -42,7 +52,10 @@ export const Route = createFileRoute("/_authenticated/admin")({
       { title: "Admin | Mercado Ecommerce" },
       { name: "description", content: "Painel administrativo de usuários, produtos e chamados." },
       { property: "og:title", content: "Admin | Mercado Ecommerce" },
-      { property: "og:description", content: "Painel administrativo de usuários, produtos e chamados." },
+      {
+        property: "og:description",
+        content: "Painel administrativo de usuários, produtos e chamados.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -103,7 +116,11 @@ function Admin() {
   // ── Dialogs state ─────────────────────────────────────────────────────────
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editPlanOpen, setEditPlanOpen] = React.useState(false);
-  const [selectedUser, setSelectedUser] = React.useState<{ id: string; email: string | null; full_name: string | null } | null>(null);
+  const [selectedUser, setSelectedUser] = React.useState<{
+    id: string;
+    email: string | null;
+    full_name: string | null;
+  } | null>(null);
   const [selectedPlanId, setSelectedPlanId] = React.useState<string>("");
 
   // ── Create user form ─────────────────────────────────────────────────────
@@ -229,7 +246,10 @@ function Admin() {
     { label: "Usuários", value: profiles.data?.length ?? 0 },
     { label: "Produtos no catálogo", value: products.data?.length ?? 0 },
     { label: "Chamados", value: tickets.data?.length ?? 0 },
-    { label: "Chamados abertos", value: (tickets.data ?? []).filter((t) => t.status === "aberto").length },
+    {
+      label: "Chamados abertos",
+      value: (tickets.data ?? []).filter((t) => t.status === "aberto").length,
+    },
   ];
 
   return (
@@ -237,7 +257,9 @@ function Admin() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="surface p-5">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{s.label}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {s.label}
+            </p>
             <p className="mt-3 font-display text-2xl font-semibold">{s.value}</p>
           </div>
         ))}
@@ -308,7 +330,9 @@ function Admin() {
                         </Button>
                       )}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{shortDate(p.created_at)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {shortDate(p.created_at)}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button
@@ -323,13 +347,19 @@ function Admin() {
                           variant="ghost"
                           size="sm"
                           className={`h-8 gap-1 ${p.is_active !== false ? "text-amber-500 hover:text-amber-400" : "text-success hover:text-success"}`}
-                          onClick={() => toggleActive.mutate({ id: p.id, isActive: p.is_active === false })}
+                          onClick={() =>
+                            toggleActive.mutate({ id: p.id, isActive: p.is_active === false })
+                          }
                           disabled={toggleActive.isPending}
                         >
                           {p.is_active !== false ? (
-                            <><XCircle className="size-3" /> Desativar</>
+                            <>
+                              <XCircle className="size-3" /> Desativar
+                            </>
                           ) : (
-                            <><CheckCircle2 className="size-3" /> Ativar</>
+                            <>
+                              <CheckCircle2 className="size-3" /> Ativar
+                            </>
                           )}
                         </Button>
                       </div>
@@ -396,7 +426,9 @@ function Admin() {
               {(plans.data ?? []).map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.name}</TableCell>
-                  <TableCell><Badge variant="outline">{p.slug}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{p.slug}</Badge>
+                  </TableCell>
                   <TableCell>{(p.price_cents / 100).toFixed(2)}</TableCell>
                 </TableRow>
               ))}
@@ -461,7 +493,9 @@ function Admin() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancelar
+            </Button>
             <Button
               onClick={() => createUser.mutate()}
               disabled={!createEmail || !createPassword || createUser.isPending}
@@ -477,7 +511,9 @@ function Admin() {
       <Dialog open={editPlanOpen} onOpenChange={setEditPlanOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Alterar plano de {selectedUser?.full_name ?? selectedUser?.email}</DialogTitle>
+            <DialogTitle>
+              Alterar plano de {selectedUser?.full_name ?? selectedUser?.email}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
@@ -489,7 +525,8 @@ function Admin() {
                 <SelectContent>
                   {(plans.data ?? []).map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.name} {p.slug === "lifetime" ? "(Vitalício)" : ""} — R$ {(p.price_cents / 100).toFixed(2)}
+                      {p.name} {p.slug === "lifetime" ? "(Vitalício)" : ""} — R${" "}
+                      {(p.price_cents / 100).toFixed(2)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -497,7 +534,9 @@ function Admin() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditPlanOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setEditPlanOpen(false)}>
+              Cancelar
+            </Button>
             <Button
               onClick={() => setPlan.mutate()}
               disabled={!selectedPlanId || setPlan.isPending}

@@ -18,7 +18,11 @@ export type MeliSearchItem = {
   sold_quantity: number;
   condition: string;
   shipping: { free_shipping: boolean };
-  seller: { id: number; nickname: string; seller_reputation?: { level_id: string | null; power_seller_status: string | null } };
+  seller: {
+    id: number;
+    nickname: string;
+    seller_reputation?: { level_id: string | null; power_seller_status: string | null };
+  };
 };
 
 /** Status of the current user's connection (no tokens are returned). */
@@ -28,7 +32,9 @@ export const meliStatus = createServerFn({ method: "GET" })
     const { isMeliConfigured, MELI_PROVIDER } = await import("@/lib/meli.server");
     const { data } = await context.supabase
       .from("integrations")
-      .select("status, account_identifier, nickname, ml_user_id, connected_at, token_expires_at, last_error")
+      .select(
+        "status, account_identifier, nickname, ml_user_id, connected_at, token_expires_at, last_error",
+      )
       .eq("user_id", context.userId)
       .eq("provider", MELI_PROVIDER)
       .maybeSingle();
@@ -83,34 +89,38 @@ const ID_RE = /^[A-Z]{3}\d+$/;
 /** Searches Mercado Livre listings with the user's own token. */
 export const meliSearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((d: SearchInput): Required<SearchInput> => ({
-    q: typeof d?.q === "string" ? d.q.trim().slice(0, 120) : "",
-    category: typeof d?.category === "string" && ID_RE.test(d.category) ? d.category : "",
-    sort: typeof d?.sort === "string" && /^[a-z_]{1,30}$/.test(d.sort) ? d.sort : "",
-    sellerId: typeof d?.sellerId === "string" && /^\d{1,15}$/.test(d.sellerId) ? d.sellerId : "",
-    offset: Math.max(0, Math.min(Number(d?.offset) || 0, 1000)),
-    limit: Math.max(1, Math.min(Number(d?.limit) || 24, 50)),
-  }))
-  .handler(async ({ data, context }): Promise<Result<{ items: MeliSearchItem[]; total: number }>> => {
-    try {
-      const { meliGet } = await import("@/lib/meli.server");
-      const p = new URLSearchParams({ offset: String(data.offset), limit: String(data.limit) });
-      if (data.q) p.set("q", data.q);
-      if (data.category) p.set("category", data.category);
-      if (data.sort) p.set("sort", data.sort);
-      if (data.sellerId) p.set("seller_id", data.sellerId);
-      if (!data.q && !data.category && !data.sellerId) p.set("category", "MLB1000");
-      const r = await meliGet<{ results?: MeliSearchItem[]; paging?: { total?: number } }>(
-        context.userId,
-        `/sites/MLB/search?${p.toString()}`,
-      );
-      // Mercado Livre caps search paging at offset 1000
-      return { ok: true, items: r.results ?? [], total: Math.min(r.paging?.total ?? 0, 1000) };
-    } catch (e) {
-      const { toFailure } = await import("@/lib/meli.server");
-      return toFailure(e);
-    }
-  });
+  .validator(
+    (d: SearchInput): Required<SearchInput> => ({
+      q: typeof d?.q === "string" ? d.q.trim().slice(0, 120) : "",
+      category: typeof d?.category === "string" && ID_RE.test(d.category) ? d.category : "",
+      sort: typeof d?.sort === "string" && /^[a-z_]{1,30}$/.test(d.sort) ? d.sort : "",
+      sellerId: typeof d?.sellerId === "string" && /^\d{1,15}$/.test(d.sellerId) ? d.sellerId : "",
+      offset: Math.max(0, Math.min(Number(d?.offset) || 0, 1000)),
+      limit: Math.max(1, Math.min(Number(d?.limit) || 24, 50)),
+    }),
+  )
+  .handler(
+    async ({ data, context }): Promise<Result<{ items: MeliSearchItem[]; total: number }>> => {
+      try {
+        const { meliGet } = await import("@/lib/meli.server");
+        const p = new URLSearchParams({ offset: String(data.offset), limit: String(data.limit) });
+        if (data.q) p.set("q", data.q);
+        if (data.category) p.set("category", data.category);
+        if (data.sort) p.set("sort", data.sort);
+        if (data.sellerId) p.set("seller_id", data.sellerId);
+        if (!data.q && !data.category && !data.sellerId) p.set("category", "MLB1000");
+        const r = await meliGet<{ results?: MeliSearchItem[]; paging?: { total?: number } }>(
+          context.userId,
+          `/sites/MLB/search?${p.toString()}`,
+        );
+        // Mercado Livre caps search paging at offset 1000
+        return { ok: true, items: r.results ?? [], total: Math.min(r.paging?.total ?? 0, 1000) };
+      } catch (e) {
+        const { toFailure } = await import("@/lib/meli.server");
+        return toFailure(e);
+      }
+    },
+  );
 
 /**
  * Saves a Mercado Livre listing into the shared catalog cache (`products`).
@@ -143,7 +153,8 @@ export const meliSaveProduct = createServerFn({ method: "POST" })
         condition?: string;
       }>(context.userId, `/items/${data.itemId}`);
 
-      const image = item.pictures?.[0]?.secure_url ?? item.pictures?.[0]?.url ?? item.thumbnail ?? null;
+      const image =
+        item.pictures?.[0]?.secure_url ?? item.pictures?.[0]?.url ?? item.thumbnail ?? null;
       const { data: saved, error } = await supabaseAdmin
         .from("products")
         .upsert(
@@ -165,7 +176,8 @@ export const meliSaveProduct = createServerFn({ method: "POST" })
         )
         .select("id")
         .single();
-      if (error || !saved) return { ok: false, kind: "db", message: "Não foi possível salvar o produto no catálogo" };
+      if (error || !saved)
+        return { ok: false, kind: "db", message: "Não foi possível salvar o produto no catálogo" };
       return { ok: true, productId: saved.id };
     } catch (e) {
       const { toFailure } = await import("@/lib/meli.server");

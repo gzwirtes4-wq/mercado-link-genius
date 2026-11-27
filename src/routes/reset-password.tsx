@@ -13,7 +13,10 @@ export const Route = createFileRoute("/reset-password")({
       { title: "Criar nova senha | Mercado Ecommerce" },
       { name: "description", content: "Defina uma nova senha para acessar o painel AfiliaHub." },
       { property: "og:title", content: "Criar nova senha | Mercado Ecommerce" },
-      { property: "og:description", content: "Defina uma nova senha para acessar o painel AfiliaHub." },
+      {
+        property: "og:description",
+        content: "Defina uma nova senha para acessar o painel AfiliaHub.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -48,7 +51,9 @@ function ResetPassword() {
     <div className="flex min-h-screen items-center justify-center px-5">
       <form onSubmit={submit} className="surface w-full max-w-sm space-y-4 p-6">
         <h1 className="font-display text-2xl font-semibold">Criar nova senha</h1>
-        <p className="text-sm text-muted-foreground">Escolha uma senha com pelo menos 6 caracteres.</p>
+        <p className="text-sm text-muted-foreground">
+          Escolha uma senha com pelo menos 6 caracteres.
+        </p>
         <div className="space-y-2">
           <Label htmlFor="password">Nova senha</Label>
           <Input id="password" name="password" type="password" required minLength={6} />

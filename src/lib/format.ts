@@ -4,7 +4,13 @@ export const brl = (value: number) =>
 export const brlFromCents = (cents: number) => brl((cents || 0) / 100);
 
 export const shortDate = (value?: string | null) =>
-  value ? new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }) : "-";
+  value
+    ? new Date(value).toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : "-";
 
 export const greeting = () => {
   const h = new Date().getHours();

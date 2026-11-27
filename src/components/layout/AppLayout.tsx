@@ -51,7 +51,10 @@ export function Logo({ compact = false }: { compact?: boolean }) {
 
 function NavList({ isAdmin, onNavigate }: { isAdmin: boolean; onNavigate?: () => void }) {
   const { pathname } = useLocation();
-  const items = [...NAV, ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: ShieldCheck } as const] : [])];
+  const items = [
+    ...NAV,
+    ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: ShieldCheck } as const] : []),
+  ];
 
   return (
     <nav className="flex flex-col gap-1">
@@ -72,7 +75,12 @@ function NavList({ isAdmin, onNavigate }: { isAdmin: boolean; onNavigate?: () =>
             {active && (
               <div className="absolute -left-4 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-primary" />
             )}
-            <item.icon className={cn("size-4", active ? "opacity-100" : "opacity-70 group-hover:opacity-100")} />
+            <item.icon
+              className={cn(
+                "size-4",
+                active ? "opacity-100" : "opacity-70 group-hover:opacity-100",
+              )}
+            />
             {item.label}
           </Link>
         );
@@ -112,27 +120,27 @@ export function AppLayout({
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[280px] flex-col border-r border-sidebar-border bg-sidebar lg:flex">
         {/* Gradient accent */}
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-transparent" />
-        
+
         <div className="px-6 py-6">
           <Link to="/dashboard">
             <Logo />
           </Link>
         </div>
-        
+
         <div className="mt-2 flex-1 overflow-y-auto px-4">
           <p className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Menu
           </p>
           <NavList isAdmin={isAdmin} />
         </div>
-        
+
         <div className="m-4 rounded-xl border border-sidebar-border bg-sidebar-accent/50 p-4">
           <p className="truncate text-sm font-semibold capitalize">{name}</p>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">{user?.email}</p>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="mt-3 w-full border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground" 
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3 w-full border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
             onClick={signOut}
           >
             <LogOut className="size-4 mr-2" /> Sair
@@ -150,7 +158,10 @@ export function AppLayout({
                   <Menu className="size-4" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[300px] border-r border-sidebar-border bg-sidebar p-0">
+              <SheetContent
+                side="left"
+                className="w-[300px] border-r border-sidebar-border bg-sidebar p-0"
+              >
                 <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
                 <div className="flex h-full flex-col px-5 py-6">
                   <Link onClick={() => setOpen(false)} to="/dashboard">
@@ -159,10 +170,10 @@ export function AppLayout({
                   <div className="mt-6 flex-1 overflow-y-auto">
                     <NavList isAdmin={isAdmin} onNavigate={() => setOpen(false)} />
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-4 border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground" 
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-4 border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
                     onClick={signOut}
                   >
                     <LogOut className="size-4 mr-2" /> Sair
@@ -174,7 +185,9 @@ export function AppLayout({
             <div className="min-w-0 flex-1">
               <h1 className="truncate font-display text-xl font-semibold sm:text-2xl">{title}</h1>
               {description && (
-                <p className="mt-0.5 truncate text-xs text-muted-foreground sm:text-sm">{description}</p>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground sm:text-sm">
+                  {description}
+                </p>
               )}
             </div>
             {actions}

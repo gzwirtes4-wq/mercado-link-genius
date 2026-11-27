@@ -1,5 +1,11 @@
 import { ExternalLink, Star, Truck } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +32,8 @@ export function ProductDialog({
         <DialogHeader>
           <DialogTitle className="pr-6 text-left text-base">{product.title}</DialogTitle>
           <DialogDescription className="text-left">
-            {product.category} • {product.source === "demo" ? "Item de demonstração do catálogo" : "Produto do catálogo"}
+            {product.category} •{" "}
+            {product.source === "demo" ? "Item de demonstração do catálogo" : "Produto do catálogo"}
           </DialogDescription>
         </DialogHeader>
 
@@ -46,7 +53,9 @@ export function ProductDialog({
               />
             )}
             <div className="flex flex-wrap items-center gap-3">
-              <span className="font-display text-2xl font-semibold">{brl(Number(product.price))}</span>
+              <span className="font-display text-2xl font-semibold">
+                {brl(Number(product.price))}
+              </span>
               {product.original_price && Number(product.original_price) > Number(product.price) && (
                 <span className="text-sm text-muted-foreground line-through">
                   {brl(Number(product.original_price))}
@@ -63,13 +72,15 @@ export function ProductDialog({
               <div className="rounded-lg border border-border p-3">
                 <dt className="text-xs text-muted-foreground">Avaliação</dt>
                 <dd className="mt-1 flex items-center gap-1 font-medium">
-                  <Star className="size-4 fill-brand text-brand" /> {Number(product.rating).toFixed(1)} (
-                  {product.reviews_count})
+                  <Star className="size-4 fill-brand text-brand" />{" "}
+                  {Number(product.rating).toFixed(1)} ({product.reviews_count})
                 </dd>
               </div>
               <div className="rounded-lg border border-border p-3">
                 <dt className="text-xs text-muted-foreground">Vendidos</dt>
-                <dd className="mt-1 font-medium">{product.sold_quantity.toLocaleString("pt-BR")}</dd>
+                <dd className="mt-1 font-medium">
+                  {product.sold_quantity.toLocaleString("pt-BR")}
+                </dd>
               </div>
             </dl>
             {product.permalink && (

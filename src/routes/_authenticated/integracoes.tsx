@@ -2,7 +2,19 @@ import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ExternalLink, Plug, PlugZap, RefreshCw, Trash2, AlertCircle, CheckCircle2, Loader2, ShoppingBag, ShieldCheck, ExternalLinkIcon } from "lucide-react";
+import {
+  ExternalLink,
+  Plug,
+  PlugZap,
+  RefreshCw,
+  Trash2,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  ShoppingBag,
+  ShieldCheck,
+  ExternalLinkIcon,
+} from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +48,12 @@ function IntegrationsPage() {
   const startAuth = useServerFn(meliStartAuth);
   const doDisconnect = useServerFn(meliDisconnect);
 
-  const { data: status, isLoading, isError, refetch } = useQuery({
+  const {
+    data: status,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["meli-status", uid],
     queryFn: () => getStatus(),
     enabled: !!uid,
@@ -49,7 +66,8 @@ function IntegrationsPage() {
     const result = params.get("meli");
     if (!result) return;
     if (result === "ok") toast.success("Conta do Mercado Livre conectada");
-    else toast.error("Não foi possível conectar", { description: params.get("motivo") ?? undefined });
+    else
+      toast.error("Não foi possível conectar", { description: params.get("motivo") ?? undefined });
     window.history.replaceState(null, "", window.location.pathname);
     void queryClient.invalidateQueries({ queryKey: ["meli-status"] });
     void queryClient.invalidateQueries({ queryKey: ["integration"] });
@@ -61,7 +79,8 @@ function IntegrationsPage() {
       if (!r.ok) throw new Error(r.message);
       window.location.href = r.url;
     },
-    onError: (err: Error) => toast.error("Não foi possível iniciar a conexão", { description: err.message }),
+    onError: (err: Error) =>
+      toast.error("Não foi possível iniciar a conexão", { description: err.message }),
   });
 
   const disconnectMutation = useMutation({
@@ -87,7 +106,6 @@ function IntegrationsPage() {
       description="Conecte suas contas de plataformas para receber pedidos e comissões reais."
     >
       <div className="mx-auto max-w-2xl space-y-6">
-
         {/* ── Mercado Livre ── */}
         <Card>
           <CardHeader>
@@ -111,7 +129,10 @@ function IntegrationsPage() {
                   Conectado
                 </Badge>
               ) : expired ? (
-                <Badge variant="secondary" className="bg-destructive/10 text-destructive border-destructive/20">
+                <Badge
+                  variant="secondary"
+                  className="bg-destructive/10 text-destructive border-destructive/20"
+                >
                   <AlertCircle className="mr-1 size-3" />
                   Autorização expirada
                 </Badge>
@@ -165,7 +186,9 @@ function IntegrationsPage() {
               </>
             ) : isError ? (
               <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
-                <p className="text-sm text-white/60">Não foi possível carregar o status da integração.</p>
+                <p className="text-sm text-white/60">
+                  Não foi possível carregar o status da integração.
+                </p>
                 <Button size="sm" variant="outline" onClick={() => void refetch()}>
                   Tentar novamente
                 </Button>
@@ -179,8 +202,8 @@ function IntegrationsPage() {
                   <div className="flex items-start gap-2">
                     <ShieldCheck className="size-4 text-[#FFD000] mt-0.5" />
                     <p className="text-sm text-white/60">
-                      Ao clicar em "Conectar", você será direcionado ao site oficial do Mercado Livre para
-                      autorizar o acesso. Nenhuma senha é digitada aqui.
+                      Ao clicar em "Conectar", você será direcionado ao site oficial do Mercado
+                      Livre para autorizar o acesso. Nenhuma senha é digitada aqui.
                     </p>
                   </div>
                 </div>
@@ -205,7 +228,8 @@ function IntegrationsPage() {
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-[#FFD000]">Configuração necessária</p>
                       <p className="text-xs text-white/50">
-                        Para ativar a conexão com o Mercado Livre, adicione os seguintes secrets no servidor:
+                        Para ativar a conexão com o Mercado Livre, adicione os seguintes secrets no
+                        servidor:
                       </p>
                       <ul className="mt-2 space-y-1 text-xs text-white/40 font-mono">
                         <li>• MELI_CLIENT_ID</li>
@@ -221,7 +245,8 @@ function IntegrationsPage() {
                         rel="noopener noreferrer"
                         className="mt-2 inline-flex items-center gap-1 text-xs text-[#FFD000] underline underline-offset-2 hover:text-[#FFD000]/80"
                       >
-                        Ver documentação OAuth do Mercado Livre <ExternalLinkIcon className="size-3" />
+                        Ver documentação OAuth do Mercado Livre{" "}
+                        <ExternalLinkIcon className="size-3" />
                       </a>
                     </div>
                   </div>
@@ -244,9 +269,18 @@ function IntegrationsPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {[
-              { step: "1", text: "Clique em 'Conectar' e autorize no site oficial do Mercado Livre." },
-              { step: "2", text: "O Mercado Livre redireciona de volta com um código de autorização." },
-              { step: "3", text: "Seu código é trocado por tokens seguros — senha nunca é armazenada." },
+              {
+                step: "1",
+                text: "Clique em 'Conectar' e autorize no site oficial do Mercado Livre.",
+              },
+              {
+                step: "2",
+                text: "O Mercado Livre redireciona de volta com um código de autorização.",
+              },
+              {
+                step: "3",
+                text: "Seu código é trocado por tokens seguros — senha nunca é armazenada.",
+              },
               { step: "4", text: "Pedidos e comissões aparecem automaticamente no seu painel." },
             ].map((item) => (
               <div key={item.step} className="flex items-start gap-3 text-sm">
@@ -258,7 +292,6 @@ function IntegrationsPage() {
             ))}
           </CardContent>
         </Card>
-
       </div>
     </AppLayout>
   );

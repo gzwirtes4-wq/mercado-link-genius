@@ -26,7 +26,9 @@ export type MeliFailure = { ok: false; kind: string; message: string };
 /** Converts any error into a serializable failure for server functions. */
 export function toFailure(e: unknown): MeliFailure {
   if (e instanceof MeliError) return { ok: false, kind: e.kind, message: e.message };
-  console.error(JSON.stringify({ scope: "meli", level: "error", msg: "unexpected", err: String(e) }));
+  console.error(
+    JSON.stringify({ scope: "meli", level: "error", msg: "unexpected", err: String(e) }),
+  );
   return { ok: false, kind: "internal", message: "Erro interno ao falar com o Mercado Livre" };
 }
 
@@ -63,7 +65,10 @@ export function getMeliConfig() {
       !clientSecret && "MELI_CLIENT_SECRET",
       !redirectUri && "MELI_REDIRECT_URI",
     ].filter(Boolean);
-    throw new MeliError("config", `Integração não configurada no servidor (faltando: ${missing.join(", ")})`);
+    throw new MeliError(
+      "config",
+      `Integração não configurada no servidor (faltando: ${missing.join(", ")})`,
+    );
   }
   return { clientId, clientSecret, redirectUri };
 }
@@ -89,7 +94,9 @@ export async function createOAuthState(userId: string): Promise<string> {
     .delete()
     .lt("created_at", new Date(Date.now() - STATE_TTL_MS).toISOString());
 
-  const { error } = await supabaseAdmin.from("meli_oauth_states").insert({ state, user_id: userId });
+  const { error } = await supabaseAdmin
+    .from("meli_oauth_states")
+    .insert({ state, user_id: userId });
   if (error) throw new MeliError("api_error", "Não foi possível iniciar a conexão");
   return state;
 }
@@ -135,10 +142,17 @@ async function tokenRequest(params: Record<string, string>): Promise<TokenRespon
 
 async function storeTokens(userId: string, t: TokenResponse) {
   const expiresAt = new Date(Date.now() + t.expires_in * 1000).toISOString();
-  const { error } = await supabaseAdmin.from("meli_tokens").upsert(
-    { user_id: userId, access_token: t.access_token, refresh_token: t.refresh_token, expires_at: expiresAt },
-    { onConflict: "user_id" },
-  );
+  const { error } = await supabaseAdmin
+    .from("meli_tokens")
+    .upsert(
+      {
+        user_id: userId,
+        access_token: t.access_token,
+        refresh_token: t.refresh_token,
+        expires_at: expiresAt,
+      },
+      { onConflict: "user_id" },
+    );
   if (error) throw new MeliError("api_error", "Falha ao salvar credenciais");
   return expiresAt;
 }
@@ -146,7 +160,10 @@ async function storeTokens(userId: string, t: TokenResponse) {
 async function setIntegration(userId: string, values: Record<string, unknown>) {
   const { error } = await supabaseAdmin
     .from("integrations")
-    .upsert({ user_id: userId, provider: MELI_PROVIDER, ...values }, { onConflict: "user_id,provider" });
+    .upsert(
+      { user_id: userId, provider: MELI_PROVIDER, ...values },
+      { onConflict: "user_id,provider" },
+    );
   if (error) log("error", "integration upsert failed", { userId, code: error.code });
 }
 
@@ -171,14 +188,19 @@ export async function completeAuthorization(userId: string, code: string) {
     .eq("status", "connected")
     .maybeSingle();
   if (other) {
-    throw new MeliError("forbidden", "Esta conta do Mercado Livre já está conectada a outro usuário da plataforma");
+    throw new MeliError(
+      "forbidden",
+      "Esta conta do Mercado Livre já está conectada a outro usuário da plataforma",
+    );
   }
 
   const expiresAt = await storeTokens(userId, t);
 
   let nickname: string | null = null;
   try {
-    const me = await fetch(`${MELI_API}/users/me`, { headers: { Authorization: `Bearer ${t.access_token}` } });
+    const me = await fetch(`${MELI_API}/users/me`, {
+      headers: { Authorization: `Bearer ${t.access_token}` },
+    });
     if (me.ok) nickname = ((await me.json()) as { nickname?: string }).nickname ?? null;
   } catch {
     /* nickname is cosmetic */
@@ -217,7 +239,8 @@ export async function getAccessToken(userId: string): Promise<string> {
     .select("access_token, refresh_token, expires_at")
     .eq("user_id", userId)
     .maybeSingle();
-  if (!tok) throw new MeliError("not_connected", "Conecte sua conta do Mercado Livre em Integrações");
+  if (!tok)
+    throw new MeliError("not_connected", "Conecte sua conta do Mercado Livre em Integrações");
 
   if (new Date(tok.expires_at).getTime() - Date.now() > REFRESH_MARGIN_MS) return tok.access_token;
 
@@ -231,7 +254,11 @@ export async function getAccessToken(userId: string): Promise<string> {
       refresh_token: tok.refresh_token,
     });
     const expiresAt = await storeTokens(userId, t);
-    await setIntegration(userId, { status: "connected", token_expires_at: expiresAt, last_error: null });
+    await setIntegration(userId, {
+      status: "connected",
+      token_expires_at: expiresAt,
+      last_error: null,
+    });
     return t.access_token;
   } catch (e) {
     if (e instanceof MeliError && e.kind === "auth_expired") {
@@ -239,7 +266,10 @@ export async function getAccessToken(userId: string): Promise<string> {
         status: "expired",
         last_error: "Autorização expirada ou revogada. Reconecte a conta.",
       });
-      throw new MeliError("auth_expired", "Sua autorização do Mercado Livre expirou. Reconecte a conta em Integrações.");
+      throw new MeliError(
+        "auth_expired",
+        "Sua autorização do Mercado Livre expirou. Reconecte a conta em Integrações.",
+      );
     }
     throw e;
   }
@@ -261,7 +291,11 @@ export async function meliGet<T>(userId: string, path: string): Promise<T> {
   log("warn", "api error", { userId, status: res.status, path: path.split("?")[0] });
   if (res.status === 401) {
     await setIntegration(userId, { status: "expired", last_error: reason });
-    throw new MeliError("auth_expired", "Sua autorização do Mercado Livre expirou. Reconecte a conta.", 401);
+    throw new MeliError(
+      "auth_expired",
+      "Sua autorização do Mercado Livre expirou. Reconecte a conta.",
+      401,
+    );
   }
   if (res.status === 403) {
     throw new MeliError(
@@ -270,7 +304,13 @@ export async function meliGet<T>(userId: string, path: string): Promise<T> {
       403,
     );
   }
-  if (res.status === 429) throw new MeliError("rate_limited", "Limite de requisições do Mercado Livre atingido. Tente em instantes.", 429);
-  if (res.status === 404) throw new MeliError("not_found", "Item não encontrado no Mercado Livre", 404);
+  if (res.status === 429)
+    throw new MeliError(
+      "rate_limited",
+      "Limite de requisições do Mercado Livre atingido. Tente em instantes.",
+      429,
+    );
+  if (res.status === 404)
+    throw new MeliError("not_found", "Item não encontrado no Mercado Livre", 404);
   throw new MeliError("api_error", `Erro do Mercado Livre: ${reason}`, res.status);
 }

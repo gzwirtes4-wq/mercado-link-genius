@@ -70,7 +70,12 @@ function Configuracoes() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="phone">Telefone</Label>
-            <Input id="phone" name="phone" defaultValue={profile?.phone ?? ""} placeholder="(00) 00000-0000" />
+            <Input
+              id="phone"
+              name="phone"
+              defaultValue={profile?.phone ?? ""}
+              placeholder="(00) 00000-0000"
+            />
           </div>
           <div className="space-y-2">
             <Label>E-mail</Label>
@@ -97,7 +102,8 @@ function Configuracoes() {
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
             <Badge variant="secondary">{isAdmin ? "Administrador" : "Usuário"}</Badge>
             <span className="text-muted-foreground">
-              Acesso às ferramentas da plataforma. A cobrança de planos ainda não está ativa nesta conta.
+              Acesso às ferramentas da plataforma. A cobrança de planos ainda não está ativa nesta
+              conta.
             </span>
           </div>
         </div>

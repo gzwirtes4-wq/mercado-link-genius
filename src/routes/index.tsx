@@ -24,7 +24,10 @@ export const Route = createFileRoute("/")({
         content:
           "Plataforma premium para afiliados do Mercado Livre: encontre produtos, gere links oficiais, crie anúncios e acompanhe seus resultados.",
       },
-      { property: "og:title", content: "Mercado Ecommerce | Transforme produtos em oportunidades de vendas" },
+      {
+        property: "og:title",
+        content: "Mercado Ecommerce | Transforme produtos em oportunidades de vendas",
+      },
       {
         property: "og:description",
         content:
@@ -115,21 +118,40 @@ function Landing() {
             <span className="text-[#FFD000]">Mercado</span> Ecommerce
           </span>
           <nav className="hidden items-center gap-7 text-sm text-white/60 md:flex">
-            <a href="#como-funciona" className="hover:text-white transition-colors">Como funciona</a>
-            <a href="#beneficios" className="hover:text-white transition-colors">Benefícios</a>
-            <a href="#planos" className="hover:text-white transition-colors">Planos</a>
+            <a href="#como-funciona" className="hover:text-white transition-colors">
+              Como funciona
+            </a>
+            <a href="#beneficios" className="hover:text-white transition-colors">
+              Benefícios
+            </a>
+            <a href="#planos" className="hover:text-white transition-colors">
+              Planos
+            </a>
           </nav>
           <div className="flex items-center gap-3">
             {session ? (
-              <Button asChild size="sm" className="bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold">
+              <Button
+                asChild
+                size="sm"
+                className="bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold"
+              >
                 <Link to="/dashboard">Meu painel</Link>
               </Button>
             ) : (
               <>
-                <Button asChild variant="ghost" size="sm" className="text-white/70 hover:text-white hover:bg-white/10">
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="text-white/70 hover:text-white hover:bg-white/10"
+                >
                   <Link to="/auth">Entrar</Link>
                 </Button>
-                <Button asChild size="sm" className="bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold">
+                <Button
+                  asChild
+                  size="sm"
+                  className="bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold"
+                >
                   <a href="#planos">Começar agora</a>
                 </Button>
               </>
@@ -149,28 +171,38 @@ function Landing() {
           </Badge>
 
           <h1 className="font-display text-4xl font-bold leading-[1.1] sm:text-5xl lg:text-6xl">
-            COMECE A FATURAR{" "}
-            <span className="text-[#FFD000]">COM E-COMMERCE</span>
+            COMECE A FATURAR <span className="text-[#FFD000]">COM E-COMMERCE</span>
           </h1>
 
           <p className="mt-6 max-w-xl mx-auto text-base sm:text-lg text-white/60 leading-relaxed">
-            Encontre produtos para divulgar como afiliado e tenha ferramentas para organizar suas oportunidades de vendas em um só lugar.
+            Encontre produtos para divulgar como afiliado e tenha ferramentas para organizar suas
+            oportunidades de vendas em um só lugar.
           </p>
 
           <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Button asChild size="lg" className="bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-bold text-base px-8 py-6 rounded-xl shadow-[0_0_30px_rgba(255,208,0,0.3)]">
+            <Button
+              asChild
+              size="lg"
+              className="bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-bold text-base px-8 py-6 rounded-xl shadow-[0_0_30px_rgba(255,208,0,0.3)]"
+            >
               <a href="#planos">
                 COMEÇAR AGORA <ArrowRight className="size-5 ml-2" />
               </a>
             </Button>
-            <Button asChild size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10 hover:text-white font-semibold text-base px-8 py-6 rounded-xl">
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="border-white/20 text-white hover:bg-white/10 hover:text-white font-semibold text-base px-8 py-6 rounded-xl"
+            >
               <a href="#como-funciona">VER COMO FUNCIONA</a>
             </Button>
           </div>
 
           <p className="mt-8 flex items-start justify-center gap-2 text-xs text-white/40 max-w-sm mx-auto text-left">
             <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#FFD000]/60" />
-            Não prometemos ganhos garantidos. A plataforma oferece ferramentas de organização e divulgação — os resultados dependem do seu trabalho e da sua audiência.
+            Não prometemos ganhos garantidos. A plataforma oferece ferramentas de organização e
+            divulgação — os resultados dependem do seu trabalho e da sua audiência.
           </p>
         </div>
       </section>
@@ -192,16 +224,23 @@ function Landing() {
       <section id="como-funciona" className="py-20">
         <div className="mx-auto max-w-6xl px-5">
           <div className="text-center mb-14">
-            <h2 className="font-display text-3xl font-bold text-white sm:text-4xl">Como funciona</h2>
+            <h2 className="font-display text-3xl font-bold text-white sm:text-4xl">
+              Como funciona
+            </h2>
             <p className="mt-3 text-sm text-white/50">Um fluxo simples, do produto à divulgação.</p>
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((s) => (
-              <div key={s.n} className="relative rounded-2xl border border-white/10 bg-white/5 p-6 hover:border-[#FFD000]/30 transition-all duration-300 group">
+              <div
+                key={s.n}
+                className="relative rounded-2xl border border-white/10 bg-white/5 p-6 hover:border-[#FFD000]/30 transition-all duration-300 group"
+              >
                 <div className="absolute -top-3 left-6 rounded-full bg-[#FFD000] px-3 py-0.5 text-xs font-bold text-black">
                   {s.n}
                 </div>
-                <h3 className="mt-2 text-base font-semibold text-white group-hover:text-[#FFD000] transition-colors">{s.title}</h3>
+                <h3 className="mt-2 text-base font-semibold text-white group-hover:text-[#FFD000] transition-colors">
+                  {s.title}
+                </h3>
                 <p className="mt-2 text-sm text-white/50">{s.text}</p>
               </div>
             ))}
@@ -216,18 +255,47 @@ function Landing() {
             <h2 className="font-display text-3xl font-bold text-white sm:text-4xl">
               Tudo que você precisa para começar
             </h2>
-            <p className="mt-3 text-sm text-white/50">Ferramentas completas em uma única plataforma.</p>
+            <p className="mt-3 text-sm text-white/50">
+              Ferramentas completas em uma única plataforma.
+            </p>
           </div>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { icon: ShoppingCart, title: "Catálogo de Produtos", text: "Busca e filtros avançados para achar produtos rapidamente no Mercado Livre." },
-              { icon: Zap, title: "Integração Mercado Livre", text: "Conexão pelo fluxo oficial OAuth. Nunca pedimos sua senha." },
-              { icon: Link2, title: "Gerador de Links", text: "Links organizados por produto, com contagem de cliques." },
-              { icon: TrendingUp, title: "Criador de Anúncios", text: "Modelos de copy prontos para WhatsApp, Instagram, Telegram e Stories." },
-              { icon: CheckCircle2, title: "Meus Produtos", text: "Sua seleção salva, com status e ações rápidas." },
-              { icon: Users, title: "Analytics", text: "Acompanhe cliques, pedidos e comissões disponíveis pela integração." },
+              {
+                icon: ShoppingCart,
+                title: "Catálogo de Produtos",
+                text: "Busca e filtros avançados para achar produtos rapidamente no Mercado Livre.",
+              },
+              {
+                icon: Zap,
+                title: "Integração Mercado Livre",
+                text: "Conexão pelo fluxo oficial OAuth. Nunca pedimos sua senha.",
+              },
+              {
+                icon: Link2,
+                title: "Gerador de Links",
+                text: "Links organizados por produto, com contagem de cliques.",
+              },
+              {
+                icon: TrendingUp,
+                title: "Criador de Anúncios",
+                text: "Modelos de copy prontos para WhatsApp, Instagram, Telegram e Stories.",
+              },
+              {
+                icon: CheckCircle2,
+                title: "Meus Produtos",
+                text: "Sua seleção salva, com status e ações rápidas.",
+              },
+              {
+                icon: Users,
+                title: "Analytics",
+                text: "Acompanhe cliques, pedidos e comissões disponíveis pela integração.",
+              },
             ].map((b) => (
-              <div key={b.title} className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:border-[#FFD000]/30 transition-all duration-300">
+              <div
+                key={b.title}
+                className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:border-[#FFD000]/30 transition-all duration-300"
+              >
                 <div className="grid size-11 place-items-center rounded-xl bg-[#FFD000]/10">
                   <b.icon className="size-5 text-[#FFD000]" />
                 </div>
@@ -284,12 +352,23 @@ function Landing() {
                 </ul>
                 <div className="mt-8">
                   {p.highlight ? (
-                    <Button asChild className="w-full bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-bold text-base py-6 rounded-xl shadow-[0_0_30px_rgba(255,208,0,0.3)]">
-                      <Link to="/auth">COMPRAR LIFETIME <ArrowRight className="size-4 ml-2" /></Link>
+                    <Button
+                      asChild
+                      className="w-full bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-bold text-base py-6 rounded-xl shadow-[0_0_30px_rgba(255,208,0,0.3)]"
+                    >
+                      <Link to="/auth">
+                        COMPRAR LIFETIME <ArrowRight className="size-4 ml-2" />
+                      </Link>
                     </Button>
                   ) : (
-                    <Button asChild variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 hover:text-white font-semibold py-6 rounded-xl">
-                      <Link to="/auth">ASSINAR AGORA <ArrowRight className="size-4 ml-2" /></Link>
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="w-full border-white/20 text-white hover:bg-white/10 hover:text-white font-semibold py-6 rounded-xl"
+                    >
+                      <Link to="/auth">
+                        ASSINAR AGORA <ArrowRight className="size-4 ml-2" />
+                      </Link>
                     </Button>
                   )}
                 </div>
@@ -298,7 +377,8 @@ function Landing() {
           </div>
 
           <p className="mt-8 text-center text-xs text-white/30">
-            Os valores referem-se ao acesso às ferramentas da plataforma. Não vendemos promessa de faturamento nem garantia de vendas.
+            Os valores referem-se ao acesso às ferramentas da plataforma. Não vendemos promessa de
+            faturamento nem garantia de vendas.
           </p>
         </div>
       </section>
@@ -312,8 +392,14 @@ function Landing() {
           <p className="mt-3 text-sm text-white/50">
             Construa sua operação de divulgação com estrutura profissional.
           </p>
-          <Button asChild size="lg" className="mt-8 bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-bold text-base px-10 py-6 rounded-xl shadow-[0_0_30px_rgba(255,208,0,0.3)]">
-            <a href="#planos">COMEÇAR AGORA <ArrowRight className="size-5 ml-2" /></a>
+          <Button
+            asChild
+            size="lg"
+            className="mt-8 bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-bold text-base px-10 py-6 rounded-xl shadow-[0_0_30px_rgba(255,208,0,0.3)]"
+          >
+            <a href="#planos">
+              COMEÇAR AGORA <ArrowRight className="size-5 ml-2" />
+            </a>
           </Button>
         </div>
       </section>
