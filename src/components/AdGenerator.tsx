@@ -15,7 +15,9 @@ type Style = (typeof STYLES)[number];
 
 function buildCopy(product: Product, channel: Channel, style: Style, link: string) {
   const price = brl(Number(product.price));
-  const linkLine = link ? `\n\n👉 ${link}` : "\n\n👉 (gere seu link de afiliado na página Meus Produtos)";
+  const linkLine = link
+    ? `\n\n👉 ${link}`
+    : "\n\n👉 (gere seu link de afiliado na página Meus Produtos)";
   const disclaimer = "\n\nPreço e disponibilidade podem mudar a qualquer momento.";
 
   const bodies: Record<Style, string> = {
@@ -40,7 +42,9 @@ function buildCopy(product: Product, channel: Channel, style: Style, link: strin
 export function AdGenerator({ product, link }: { product: Product; link?: string }) {
   const [style, setStyle] = React.useState<Style>("Oferta");
   const [channel, setChannel] = React.useState<Channel>("WhatsApp");
-  const [text, setText] = React.useState(() => buildCopy(product, "WhatsApp", "Oferta", link ?? ""));
+  const [text, setText] = React.useState(() =>
+    buildCopy(product, "WhatsApp", "Oferta", link ?? ""),
+  );
 
   React.useEffect(() => {
     setText(buildCopy(product, channel, style, link ?? ""));
@@ -81,7 +85,12 @@ export function AdGenerator({ product, link }: { product: Product; link?: string
         ))}
       </div>
 
-      <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={10} className="text-sm" />
+      <Textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={10}
+        className="text-sm"
+      />
       <Button onClick={copy} className="w-full">
         <Copy className="size-4" /> Copiar texto
       </Button>

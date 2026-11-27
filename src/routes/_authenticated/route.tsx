@@ -29,11 +29,18 @@ function AuthenticatedLayout() {
     queryKey: ["access", userId],
     enabled: Boolean(userId),
     queryFn: async () => {
-      const { data } = await supabase
-        .from("subscriptions")
-        .select("status, current_period_end, plans(slug)")
-        .eq("user_id", userId!)
-        .maybeSingle();
+      const [{ data, error }, { data: profile }] = await Promise.all([
+        supabase
+          .from("subscriptions")
+          .select("status, current_period_end, plans(slug)")
+          .eq("user_id", userId!)
+          .maybeSingle(),
+        supabase.from("profiles").select("is_active").eq("id", userId!).maybeSingle(),
+      ]);
+      // A network/DB error must not look like "no plan" (that would send a
+      // paying user to the plans screen). Let react-query retry/surface it.
+      if (error) throw error;
+      if (profile?.is_active === false) return false; // deactivated by an admin
       if (!data || data.status !== "active") return false;
       const slug = (data.plans as { slug: string } | null)?.slug;
       if (slug === "lifetime") return true;
@@ -55,6 +62,24 @@ function AuthenticatedLayout() {
   }, [isAdmin, access.isSuccess, access.data, navigate]);
 
   if (loading || !session) return <Splash />;
+  if (!isAdmin && access.isError) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background px-5 text-center">
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Não foi possível verificar seu acesso. Verifique sua conexão.
+          </p>
+          <button
+            type="button"
+            className="text-sm font-medium underline underline-offset-4"
+            onClick={() => void access.refetch()}
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
   if (!isAdmin && (access.isLoading || access.data === false)) return <Splash />;
 
   return <Outlet />;

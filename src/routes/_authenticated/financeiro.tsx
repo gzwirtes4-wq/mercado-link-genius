@@ -5,7 +5,14 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useAuth } from "@/hooks/useAuth";
 import { brl, shortDate } from "@/lib/format";
 import { fetchCommissions, fetchIntegration } from "@/lib/queries";
@@ -27,8 +34,16 @@ export const Route = createFileRoute("/_authenticated/financeiro")({
 function Financeiro() {
   const { user } = useAuth();
   const uid = user?.id ?? "";
-  const commissions = useQuery({ queryKey: ["commissions", uid], queryFn: () => fetchCommissions(uid), enabled: !!uid });
-  const integration = useQuery({ queryKey: ["integration", uid], queryFn: () => fetchIntegration(uid), enabled: !!uid });
+  const commissions = useQuery({
+    queryKey: ["commissions", uid],
+    queryFn: () => fetchCommissions(uid),
+    enabled: !!uid,
+  });
+  const integration = useQuery({
+    queryKey: ["integration", uid],
+    queryFn: () => fetchIntegration(uid),
+    enabled: !!uid,
+  });
   const connected = integration.data?.status === "connected";
 
   const rows = commissions.data ?? [];
@@ -42,11 +57,16 @@ function Financeiro() {
   ];
 
   return (
-    <AppLayout title="Financeiro" description="Suas comissões, sempre com dados reais da integração.">
+    <AppLayout
+      title="Financeiro"
+      description="Suas comissões, sempre com dados reais da integração."
+    >
       <div className="grid gap-4 sm:grid-cols-3">
         {cards.map((c) => (
           <div key={c.label} className="surface p-5">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{c.label}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {c.label}
+            </p>
             <p className="mt-3 font-display text-2xl font-semibold">{brl(c.value)}</p>
           </div>
         ))}

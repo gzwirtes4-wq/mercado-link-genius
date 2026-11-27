@@ -44,9 +44,21 @@ function MeusProdutos() {
   const [selected, setSelected] = React.useState<Product | null>(null);
   const [removing, setRemoving] = React.useState<string | null>(null);
 
-  const mine = useQuery({ queryKey: ["my-products", uid], queryFn: () => fetchMyProducts(uid), enabled: !!uid });
-  const links = useQuery({ queryKey: ["links", uid], queryFn: () => fetchMyLinks(uid), enabled: !!uid });
-  const integration = useQuery({ queryKey: ["integration", uid], queryFn: () => fetchIntegration(uid), enabled: !!uid });
+  const mine = useQuery({
+    queryKey: ["my-products", uid],
+    queryFn: () => fetchMyProducts(uid),
+    enabled: !!uid,
+  });
+  const links = useQuery({
+    queryKey: ["links", uid],
+    queryFn: () => fetchMyLinks(uid),
+    enabled: !!uid,
+  });
+  const integration = useQuery({
+    queryKey: ["integration", uid],
+    queryFn: () => fetchIntegration(uid),
+    enabled: !!uid,
+  });
   const connected = integration.data?.status === "connected";
 
   const linkFor = (productId: string) => links.data?.find((l) => l.product_id === productId);
@@ -123,7 +135,12 @@ function MeusProdutos() {
               <div key={row.id} className="surface flex flex-col p-4">
                 <div className="flex gap-3">
                   {p.image_url && (
-                    <img src={p.image_url} alt={p.title} loading="lazy" className="size-16 rounded-lg object-cover" />
+                    <img
+                      src={p.image_url}
+                      alt={p.title}
+                      loading="lazy"
+                      className="size-16 rounded-lg object-cover"
+                    />
                   )}
                   <div className="min-w-0">
                     <p className="line-clamp-2 text-sm font-semibold">{p.title}</p>
@@ -151,14 +168,23 @@ function MeusProdutos() {
                       <Copy className="size-4" /> Copiar link
                     </Button>
                   ) : (
-                    <Button size="sm" onClick={() => generate.mutate(p)} disabled={generate.isPending}>
+                    <Button
+                      size="sm"
+                      onClick={() => generate.mutate(p)}
+                      disabled={generate.isPending}
+                    >
                       <Link2 className="size-4" /> Gerar link
                     </Button>
                   )}
                   <Button variant="outline" size="sm" onClick={() => setSelected(p)}>
                     <Megaphone className="size-4" /> Criar anúncio
                   </Button>
-                  <Button variant="ghost" size="sm" className="col-span-2 text-destructive" onClick={() => setRemoving(row.id)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="col-span-2 text-destructive"
+                    onClick={() => setRemoving(row.id)}
+                  >
                     <Trash2 className="size-4" /> Remover
                   </Button>
                 </div>
@@ -180,12 +206,15 @@ function MeusProdutos() {
           <AlertDialogHeader>
             <AlertDialogTitle>Remover produto?</AlertDialogTitle>
             <AlertDialogDescription>
-              O produto sai da sua lista. O link gerado para ele também deixa de ficar disponível aqui.
+              O produto sai da sua lista. O link gerado para ele também deixa de ficar disponível
+              aqui.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => removing && remove.mutate(removing)}>Remover</AlertDialogAction>
+            <AlertDialogAction onClick={() => removing && remove.mutate(removing)}>
+              Remover
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

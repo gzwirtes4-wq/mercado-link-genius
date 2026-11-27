@@ -10,7 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { shortDate } from "@/lib/format";
@@ -37,7 +43,11 @@ function Chamados() {
   const [category, setCategory] = React.useState("Geral");
   const [priority, setPriority] = React.useState("media");
 
-  const tickets = useQuery({ queryKey: ["tickets", uid], queryFn: () => fetchTickets(uid), enabled: !!uid });
+  const tickets = useQuery({
+    queryKey: ["tickets", uid],
+    queryFn: () => fetchTickets(uid),
+    enabled: !!uid,
+  });
 
   const create = useMutation({
     mutationFn: async (payload: { subject: string; message: string }) => {
@@ -54,7 +64,8 @@ function Chamados() {
       toast.success("Chamado aberto");
       void qc.invalidateQueries({ queryKey: ["tickets", uid] });
     },
-    onError: (e: Error) => toast.error("Não foi possível abrir o chamado", { description: e.message }),
+    onError: (e: Error) =>
+      toast.error("Não foi possível abrir o chamado", { description: e.message }),
   });
 
   const submit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -104,7 +115,13 @@ function Chamados() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="message">Mensagem</Label>
-            <Textarea id="message" name="message" required rows={5} placeholder="Descreva o que aconteceu" />
+            <Textarea
+              id="message"
+              name="message"
+              required
+              rows={5}
+              placeholder="Descreva o que aconteceu"
+            />
           </div>
           <Button className="w-full" disabled={create.isPending}>
             Abrir chamado

@@ -1,0 +1,65 @@
+# Verificação automática a cada push/PR. Não publica nada: só instala,
+# compila, checa tipos/lint e roda os testes de permissão do banco.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Instalar dependências
+        run: bun install --frozen-lockfile
+      - name: Verificar tipos (TypeScript)
+        run: bunx tsc --noEmit
+      - name: Lint
+        run: bun run lint
+      - name: Build
+        run: bun run build
+
+  db-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      PGPASSWORD: postgres
+      PGARGS: -h localhost -U postgres
+    steps:
+      - uses: actions/checkout@v5
+      - name: Aplicar migrations num banco de teste (stub do Supabase)
+        run: |
+          psql $PGARGS -c "create database rls_check"
+          psql $PGARGS -d rls_check -v ON_ERROR_STOP=1 -f tests/db/supabase_stub.sql
+          for f in supabase/migrations/*.sql; do
+            echo "-> $f"
+            psql $PGARGS -d rls_check -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+      - name: Testes de permissão (RLS) e de limites de uso
+        run: |
+          ./tests/db/rls_test.sh rls_check | tee result.txt
+          ./tests/db/quota_test.sh rls_check | tee -a result.txt
+          if grep -q '^FAIL' result.txt; then exit 1; fi
+          test "$(grep -c '^PASS' result.txt)" -ge 24

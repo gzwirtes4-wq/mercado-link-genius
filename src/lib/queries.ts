@@ -29,6 +29,8 @@ export type UserProduct = {
 export type AffiliateLink = {
   id: string;
   product_id: string;
+  /** Mercado Livre item id (e.g. MLB123…) of the linked catalog product */
+  external_id: string | null;
   url: string;
   clicks: number;
   created_at: string;
@@ -57,10 +59,15 @@ export const fetchMyProducts = async (userId: string): Promise<UserProduct[]> =>
 export const fetchMyLinks = async (userId: string): Promise<AffiliateLink[]> => {
   const { data, error } = await supabase
     .from("affiliate_links")
-    .select("id, product_id, url, clicks, created_at")
+    .select("id, product_id, url, clicks, created_at, products(external_id)")
     .eq("user_id", userId);
   if (error) throw error;
-  return (data ?? []) as AffiliateLink[];
+  return (data ?? []).map((l) => {
+    const { products, ...rest } = l as typeof l & {
+      products: { external_id: string | null } | null;
+    };
+    return { ...rest, external_id: products?.external_id ?? null };
+  }) as AffiliateLink[];
 };
 
 export const fetchIntegration = async (userId: string) => {

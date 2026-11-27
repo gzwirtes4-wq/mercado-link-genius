@@ -34,28 +34,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAuth } from "@/hooks/useAuth";
 import { brl } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyLinks, fetchIntegration } from "@/lib/queries";
+import { meliSearch, meliSaveProduct } from "@/lib/meli.functions";
 
 export const Route = createFileRoute("/_authenticated/produtos-divulgar")({
   head: () => ({
     meta: [
       { title: "Produtos para Divulgar | Mercado Ecommerce" },
-      { name: "description", content: "Encontre produtos e fornecedores do Mercado Livre para divulgar como afiliado." },
+      {
+        name: "description",
+        content: "Encontre produtos e fornecedores do Mercado Livre para divulgar como afiliado.",
+      },
     ],
   }),
   component: ProdutosDivulgarPage,
 });
 
-// ─── Mercado Livre API Config ────────────────────────────────────────────────
-const MELI_API_BASE = "https://api.mercadolivre.com.br";
+// ─── Mercado Livre API ───────────────────────────────────────────────────────
+// Calls go through server functions with the seller's own OAuth token.
 
 interface MeliProduct {
   id: string;
@@ -118,28 +118,18 @@ async function fetchMeliProducts(params: {
   offset: number;
   limit: number;
 }): Promise<{ items: MeliProduct[]; total: number }> {
-  try {
-    let url: string;
-    if (params.sellerId && params.sellerId !== "all") {
-      url = `${MELI_API_BASE}/sites/MLB/search?seller_id=${params.sellerId}&offset=${params.offset}&limit=${params.limit}`;
-    } else if (params.query) {
-      url = `${MELI_API_BASE}/sites/MLB/search?q=${encodeURIComponent(params.query)}&offset=${params.offset}&limit=${params.limit}`;
-      if (params.category && params.category !== "all") url += `&category=${params.category}`;
-      if (params.sort) url += `&sort=${params.sort}`;
-    } else if (params.category && params.category !== "all") {
-      url = `${MELI_API_BASE}/sites/MLB/search?category=${params.category}&offset=${params.offset}&limit=${params.limit}`;
-      if (params.sort) url += `&sort=${params.sort}`;
-    } else {
-      url = `${MELI_API_BASE}/sites/MLB/search?offset=${params.offset}&limit=${params.limit}`;
-    }
-
-    const res = await fetch(url);
-    if (!res.ok) return { items: [], total: 0 };
-    const data = await res.json();
-    return { items: data.results ?? [], total: data.paging?.total ?? 0 };
-  } catch {
-    return { items: [], total: 0 };
-  }
+  const r = await meliSearch({
+    data: {
+      q: params.query,
+      category: params.category === "all" ? "" : params.category,
+      sellerId: params.sellerId === "all" ? "" : params.sellerId,
+      sort: params.sort,
+      offset: params.offset,
+      limit: params.limit,
+    },
+  });
+  if (!r.ok) throw new Error(r.message);
+  return { items: r.items as unknown as MeliProduct[], total: r.total };
 }
 
 // ─── Extract unique sellers from products ─────────────────────────────────────
@@ -169,83 +159,77 @@ function extractFornecedores(products: MeliProduct[]): Fornecedor[] {
   return Array.from(map.values()).sort((a, b) => b.totalVendido - a.totalVendido);
 }
 
-// ─── Generate / Save Affiliate Link ──────────────────────────────────────────
+// ─── Generate / Save Link ─────────────────────────────────────────────────────
+// NOTE: this stores the listing's public permalink. It is NOT an affiliate
+// (commissioned) link: Mercado Livre does not offer a public API to generate
+// affiliate links, so commissions are not tracked here.
+async function saveCatalogProduct(product: MeliProduct): Promise<string> {
+  const r = await meliSaveProduct({ data: { itemId: product.id } });
+  if (!r.ok) throw new Error(r.message);
+  return r.productId;
+}
+
 async function generateAffiliateLink(userId: string, product: MeliProduct): Promise<string> {
-  const { data: existing } = await supabase
+  const productId = await saveCatalogProduct(product);
+  const { data: existing, error: readErr } = await supabase
     .from("affiliate_links")
     .select("url, id")
     .eq("user_id", userId)
-    .eq("product_id", product.id)
+    .eq("product_id", productId)
     .maybeSingle();
-
+  if (readErr) throw new Error(readErr.message);
   if (existing) return existing.url;
-  const linkUrl = product.permalink;
-  const shortCode = Math.random().toString(36).slice(2, 8);
-  await supabase.from("affiliate_links").insert({
+
+  const { error } = await supabase.from("affiliate_links").insert({
     user_id: userId,
-    product_id: product.id,
-    url: linkUrl,
-    short_code: shortCode,
+    product_id: productId,
+    url: product.permalink,
+    short_code: crypto.randomUUID().replace(/-/g, "").slice(0, 10),
     clicks: 0,
   });
-  return linkUrl;
+  if (error) throw new Error(error.message);
+  return product.permalink;
 }
 
 // ─── Add to My Products ──────────────────────────────────────────────────────
-async function addToMyProducts(userId: string, product: MeliProduct): Promise<void> {
-  const { data: saved, error: upsertError } = await supabase
-    .from("products")
-    .upsert(
-      {
-        external_id: product.id,
-        title: product.title,
-        price: product.price,
-        original_price: product.original_price ?? null,
-        category: product.category_id ?? "Geral",
-        image_url: product.thumbnail,
-        permalink: product.permalink,
-        rating: product.reviews_rating ?? 0,
-        reviews_count: product.reviews_total ?? 0,
-        sold_quantity: product.sold_quantity ?? 0,
-        free_shipping: product.shipping?.free_shipping ?? false,
-        source: "mercadolivre",
-        active: true,
-      },
-      { onConflict: "external_id" },
-    )
-    .select("id")
-    .maybeSingle();
-
-  if (upsertError || !saved) {
-    toast.error("Não foi possível salvar o produto");
-    return;
-  }
-
-  const { data: existing } = await supabase
-    .from("user_products")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("product_id", saved.id)
-    .maybeSingle();
-  if (existing) {
-    toast.info("Este produto já está na sua lista");
-    return;
-  }
-
-  await supabase.from("user_products").insert({
+/** Returns false when the product was already in the user's list. */
+async function addToMyProducts(userId: string, product: MeliProduct): Promise<boolean> {
+  const productId = await saveCatalogProduct(product);
+  const { error } = await supabase.from("user_products").insert({
     user_id: userId,
-    product_id: saved.id,
+    product_id: productId,
     status: "ativo",
   });
+  if (error) {
+    if (error.code === "23505") return false; // unique (user_id, product_id)
+    throw new Error(error.message);
+  }
+  return true;
 }
 
 // ─── Reputation Badge ─────────────────────────────────────────────────────────
-function ReputationBadge({ levelId, powerStatus }: { levelId: string | null; powerStatus: string | null }) {
+function ReputationBadge({
+  levelId,
+  powerStatus,
+}: {
+  levelId: string | null;
+  powerStatus: string | null;
+}) {
   if (powerStatus === "gold" || levelId === "5_green") {
-    return <Badge className="bg-[#FFD000]/20 text-[#FFD000] border-[#FFD000]/30 text-[10px]"><Award className="size-3 mr-1" />MercadoLíder</Badge>;
+    return (
+      <Badge className="bg-[#FFD000]/20 text-[#FFD000] border-[#FFD000]/30 text-[10px]">
+        <Award className="size-3 mr-1" />
+        MercadoLíder
+      </Badge>
+    );
   }
   if (levelId) {
-    return <Badge className="bg-[#00A650]/20 text-[#00A650] border-[#00A650]/30 text-[10px]"><BadgeCheck className="size-3 mr-1" />Verificado</Badge>;
+    return (
+      <Badge className="bg-[#00A650]/20 text-[#00A650] border-[#00A650]/30 text-[10px]">
+        <BadgeCheck className="size-3 mr-1" />
+        Verificado
+      </Badge>
+    );
   }
   return null;
 }
@@ -268,11 +252,33 @@ function ProdutosDivulgarPage() {
 
   const limit = 24;
 
-  const { data: meliResult, isLoading } = useQuery({
+  const { data: integration } = useQuery({
+    queryKey: ["integration", uid],
+    queryFn: () => fetchIntegration(uid),
+    enabled: !!uid,
+  });
+  const isUserConnected = integration?.status === "connected";
+
+  const {
+    data: meliResult,
+    isLoading: searchLoading,
+    error: meliError,
+    refetch: refetchMeli,
+  } = useQuery({
     queryKey: ["meli-products", search, category, sellerId, sort, page],
     queryFn: () =>
-      fetchMeliProducts({ query: search, category, sellerId, sort: sort === "relevance" ? "" : sort, offset: page * limit, limit }),
+      fetchMeliProducts({
+        query: search,
+        category,
+        sellerId,
+        sort: sort === "relevance" ? "" : sort,
+        offset: page * limit,
+        limit,
+      }),
+    enabled: isUserConnected,
+    retry: false,
   });
+  const isLoading = isUserConnected && searchLoading;
 
   const { data: myLinks = [] } = useQuery({
     queryKey: ["links", uid],
@@ -280,24 +286,28 @@ function ProdutosDivulgarPage() {
     enabled: !!uid,
   });
 
-  const { data: integration } = useQuery({
-    queryKey: ["integration", uid],
-    queryFn: () => fetchIntegration(uid),
-    enabled: !!uid,
-  });
-
   const fornecedores = extractFornecedores(meliResult?.items ?? []);
-  const isUserConnected = integration?.status === "connected";
   const totalPages = meliResult ? Math.ceil(meliResult.total / limit) : 0;
 
   const linkMutation = useMutation({
     mutationFn: async (product: MeliProduct) => generateAffiliateLink(uid, product),
-    onSuccess: (url) => { navigator.clipboard.writeText(url); toast.success("Link copiado!"); },
+    onSuccess: (url) => {
+      void navigator.clipboard.writeText(url);
+      queryClient.invalidateQueries({ queryKey: ["links", uid] });
+      toast.success("Link copiado!");
+    },
+    onError: (e: Error) =>
+      toast.error("Não foi possível salvar o link", { description: e.message }),
   });
 
   const addMutation = useMutation({
-    mutationFn: async (product: MeliProduct) => { await addToMyProducts(uid, product); },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["my-products", uid] }); toast.success("Adicionado à sua lista!"); },
+    mutationFn: async (product: MeliProduct) => addToMyProducts(uid, product),
+    onSuccess: (added) => {
+      queryClient.invalidateQueries({ queryKey: ["my-products", uid] });
+      if (added) toast.success("Adicionado à sua lista!");
+      else toast.info("Este produto já está na sua lista");
+    },
+    onError: (e: Error) => toast.error("Não foi possível adicionar", { description: e.message }),
   });
 
   const handleCopy = async (id: string, url: string) => {
@@ -306,7 +316,8 @@ function ProdutosDivulgarPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const activeSeller = sellerId !== "all" ? fornecedores.find((f) => String(f.id) === sellerId) : null;
+  const activeSeller =
+    sellerId !== "all" ? fornecedores.find((f) => String(f.id) === sellerId) : null;
 
   return (
     <AppLayout
@@ -318,14 +329,28 @@ function ProdutosDivulgarPage() {
             <Badge className="bg-primary/20 text-primary border-primary/30">
               <Store className="size-3 mr-1" />
               {activeSeller.nickname}
-              <button onClick={() => { setSellerId("all"); setPage(0); }} className="ml-1 hover:text-white/60">×</button>
+              <button
+                onClick={() => {
+                  setSellerId("all");
+                  setPage(0);
+                }}
+                className="ml-1 hover:text-white/60"
+              >
+                ×
+              </button>
             </Badge>
           )}
           <div className="hidden sm:flex items-center gap-1 border rounded-lg p-1">
-            <button onClick={() => setViewMode("grid")} className={`p-1.5 rounded ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}>
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`p-1.5 rounded ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+            >
               <Grid3X3 className="size-4" />
             </button>
-            <button onClick={() => setViewMode("list")} className={`p-1.5 rounded ${viewMode === "list" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}>
+            <button
+              onClick={() => setViewMode("list")}
+              className={`p-1.5 rounded ${viewMode === "list" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+            >
               <List className="size-4" />
             </button>
           </div>
@@ -341,12 +366,17 @@ function ProdutosDivulgarPage() {
           <div>
             <p className="text-sm font-semibold">Catálogo oficial do Mercado Livre</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {meliResult?.total.toLocaleString("pt-BR") ?? 0} produtos reais • {fornecedores.length} fornecedores encontrados
+              {meliResult?.total.toLocaleString("pt-BR") ?? 0} produtos reais •{" "}
+              {fornecedores.length} fornecedores encontrados
             </p>
           </div>
         </div>
         {!isUserConnected && (
-          <Button asChild size="sm" className="shrink-0 bg-[#FFD000] text-black hover:bg-[#FFD000]/90">
+          <Button
+            asChild
+            size="sm"
+            className="shrink-0 bg-[#FFD000] text-black hover:bg-[#FFD000]/90"
+          >
             <Link to="/integracoes">Conectar conta ML</Link>
           </Button>
         )}
@@ -360,13 +390,17 @@ function ProdutosDivulgarPage() {
               <Store className="size-4 text-[#FFD000]" />
               <h2 className="text-sm font-semibold">Fornecedores / Anunciantes</h2>
               {fornecedores.length > 0 && (
-                <Badge variant="secondary" className="text-[10px]">{fornecedores.length} encontrados</Badge>
+                <Badge variant="secondary" className="text-[10px]">
+                  {fornecedores.length} encontrados
+                </Badge>
               )}
             </div>
             <CollapsibleTrigger asChild>
               <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
                 <span className="hidden sm:inline">{showFornecedores ? "Ocultar" : "Mostrar"}</span>
-                <ChevronDown className={`size-4 transition-transform ${showFornecedores ? "rotate-180" : ""}`} />
+                <ChevronDown
+                  className={`size-4 transition-transform ${showFornecedores ? "rotate-180" : ""}`}
+                />
               </button>
             </CollapsibleTrigger>
           </div>
@@ -375,7 +409,10 @@ function ProdutosDivulgarPage() {
             {isLoading ? (
               <div className="flex gap-3 overflow-x-auto pb-2">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="min-w-[200px] animate-pulse space-y-2 rounded-xl border border-white/5 bg-white/5 p-4">
+                  <div
+                    key={i}
+                    className="min-w-[200px] animate-pulse space-y-2 rounded-xl border border-white/5 bg-white/5 p-4"
+                  >
                     <div className="size-10 rounded-full bg-white/10" />
                     <div className="h-4 w-24 rounded bg-white/10" />
                     <div className="h-3 w-16 rounded bg-white/10" />
@@ -397,8 +434,13 @@ function ProdutosDivulgarPage() {
                         : "border-white/10 bg-white/5 hover:border-white/20"
                     }`}
                     onClick={() => {
-                      if (sellerId === String(f.id)) { setSellerId("all"); setPage(0); }
-                      else { setSellerId(String(f.id)); setPage(0); }
+                      if (sellerId === String(f.id)) {
+                        setSellerId("all");
+                        setPage(0);
+                      } else {
+                        setSellerId(String(f.id));
+                        setPage(0);
+                      }
                     }}
                   >
                     <div className="flex items-center gap-2 mb-2">
@@ -417,11 +459,15 @@ function ProdutosDivulgarPage() {
                       </div>
                       <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                         <span>Total vendido</span>
-                        <span className="font-medium text-[#00A650]">{f.totalVendido.toLocaleString("pt-BR")}</span>
+                        <span className="font-medium text-[#00A650]">
+                          {f.totalVendido.toLocaleString("pt-BR")}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                         <span>Faixa de preço</span>
-                        <span className="font-medium text-foreground">{brl(f.minPrice)} – {brl(f.maxPrice)}</span>
+                        <span className="font-medium text-foreground">
+                          {brl(f.minPrice)} – {brl(f.maxPrice)}
+                        </span>
                       </div>
                     </div>
                     <div className="mt-3 flex gap-2">
@@ -431,7 +477,16 @@ function ProdutosDivulgarPage() {
                             ? "bg-primary text-primary-foreground"
                             : "bg-white/10 hover:bg-white/20 text-white"
                         }`}
-                        onClick={(e) => { e.stopPropagation(); if (sellerId === String(f.id)) { setSellerId("all"); setPage(0); } else { setSellerId(String(f.id)); setPage(0); } }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (sellerId === String(f.id)) {
+                            setSellerId("all");
+                            setPage(0);
+                          } else {
+                            setSellerId(String(f.id));
+                            setPage(0);
+                          }
+                        }}
                       >
                         {sellerId === String(f.id) ? "Todos" : "Ver produtos"}
                       </button>
@@ -447,7 +502,10 @@ function ProdutosDivulgarPage() {
       {/* Search & Filters */}
       <div className="surface mb-6 space-y-4 p-4">
         <form
-          onSubmit={(e) => { e.preventDefault(); setPage(0); }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            setPage(0);
+          }}
           className="flex flex-col gap-3 sm:flex-row"
         >
           <div className="relative flex-1">
@@ -460,7 +518,13 @@ function ProdutosDivulgarPage() {
             />
           </div>
           <div className="flex gap-2">
-            <Select value={sort} onValueChange={(v) => { setSort(v); setPage(0); }}>
+            <Select
+              value={sort}
+              onValueChange={(v) => {
+                setSort(v);
+                setPage(0);
+              }}
+            >
               <SelectTrigger className="w-[160px]">
                 <SelectValue placeholder="Ordenar" />
               </SelectTrigger>
@@ -482,15 +546,22 @@ function ProdutosDivulgarPage() {
             <button className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               <Filter className="size-4" />
               Categorias
-              <ChevronDown className={`size-4 transition-transform ${showFilters ? "rotate-180" : ""}`} />
+              <ChevronDown
+                className={`size-4 transition-transform ${showFilters ? "rotate-180" : ""}`}
+              />
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-3">
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => { setCategory("all"); setPage(0); }}
+                onClick={() => {
+                  setCategory("all");
+                  setPage(0);
+                }}
                 className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
-                  category === "all" ? "bg-primary text-primary-foreground" : "bg-accent hover:bg-accent/80"
+                  category === "all"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-accent hover:bg-accent/80"
                 }`}
               >
                 Todas
@@ -498,9 +569,14 @@ function ProdutosDivulgarPage() {
               {POPULAR_CATEGORIES.map((cat) => (
                 <button
                   key={cat.id}
-                  onClick={() => { setCategory(cat.id); setPage(0); }}
+                  onClick={() => {
+                    setCategory(cat.id);
+                    setPage(0);
+                  }}
                   className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
-                    category === cat.id ? "bg-primary text-primary-foreground" : "bg-accent hover:bg-accent/80"
+                    category === cat.id
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-accent hover:bg-accent/80"
                   }`}
                 >
                   {cat.icon} {cat.name}
@@ -520,8 +596,15 @@ function ProdutosDivulgarPage() {
               : `Mostrando ${page * limit + 1}–${Math.min((page + 1) * limit, meliResult.total)} de ${meliResult.total.toLocaleString("pt-BR")} produtos`}
           </p>
           {(category !== "all" || sellerId !== "all") && (
-            <Badge variant="secondary" className="bg-primary/10 text-primary cursor-pointer hover:bg-primary/20"
-              onClick={() => { setCategory("all"); setSellerId("all"); setPage(0); }}>
+            <Badge
+              variant="secondary"
+              className="bg-primary/10 text-primary cursor-pointer hover:bg-primary/20"
+              onClick={() => {
+                setCategory("all");
+                setSellerId("all");
+                setPage(0);
+              }}
+            >
               Limpar filtros ×
             </Badge>
           )}
@@ -530,7 +613,9 @@ function ProdutosDivulgarPage() {
 
       {/* Products Grid */}
       {isLoading ? (
-        <div className={viewMode === "grid" ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-4" : "space-y-3"}>
+        <div
+          className={viewMode === "grid" ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-4" : "space-y-3"}
+        >
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="surface animate-pulse space-y-3 p-4">
               <div className="aspect-[4/3] rounded-xl bg-muted" />
@@ -540,6 +625,22 @@ function ProdutosDivulgarPage() {
             </div>
           ))}
         </div>
+      ) : !isUserConnected ? (
+        <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center space-y-2">
+          <p className="text-sm text-white/70">
+            Conecte sua conta do Mercado Livre para pesquisar produtos.
+          </p>
+          <Link to="/integracoes" className="text-sm text-[#FFD000] underline underline-offset-2">
+            Ir para Integrações
+          </Link>
+        </div>
+      ) : meliError ? (
+        <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center space-y-3">
+          <p className="text-sm text-white/70">{(meliError as Error).message}</p>
+          <Button size="sm" variant="outline" onClick={() => void refetchMeli()}>
+            Tentar novamente
+          </Button>
+        </div>
       ) : meliResult?.items.length === 0 ? (
         <EmptyState
           icon={ShoppingBag}
@@ -547,18 +648,30 @@ function ProdutosDivulgarPage() {
           description="Tente ajustar os filtros ou buscar outro termo."
         />
       ) : (
-        <div className={viewMode === "grid" ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-4" : "space-y-3"}>
+        <div
+          className={viewMode === "grid" ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-4" : "space-y-3"}
+        >
           {meliResult?.items.map((p) => {
-            const hasLink = myLinks.some((ml) => ml.product_id === p.id);
-            const savedLink = myLinks.find((ml) => ml.product_id === p.id);
+            const hasLink = myLinks.some((ml) => ml.external_id === p.id);
+            const savedLink = myLinks.find((ml) => ml.external_id === p.id);
 
             if (viewMode === "list") {
               return (
-                <div key={p.id} className="surface flex gap-4 p-4 transition-all hover:shadow-[var(--shadow-lift)]">
+                <div
+                  key={p.id}
+                  className="surface flex gap-4 p-4 transition-all hover:shadow-[var(--shadow-lift)]"
+                >
                   <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-muted">
-                    <img src={p.thumbnail.replace("-I", "-O")} alt={p.title} loading="lazy" className="size-full object-cover" />
+                    <img
+                      src={p.thumbnail.replace("-I", "-O")}
+                      alt={p.title}
+                      loading="lazy"
+                      className="size-full object-cover"
+                    />
                     {p.shipping.free_shipping && (
-                      <div className="absolute bottom-1 left-1 rounded-full bg-[#00A650] px-1.5 py-0.5 text-[9px] font-bold text-white">Frete grátis</div>
+                      <div className="absolute bottom-1 left-1 rounded-full bg-[#00A650] px-1.5 py-0.5 text-[9px] font-bold text-white">
+                        Frete grátis
+                      </div>
                     )}
                   </div>
                   <div className="flex flex-1 flex-col justify-between">
@@ -566,32 +679,65 @@ function ProdutosDivulgarPage() {
                       <p className="line-clamp-2 text-sm font-semibold">{p.title}</p>
                       {p.seller && (
                         <button
-                          onClick={() => { setSellerId(String(p.seller.id)); setPage(0); }}
+                          onClick={() => {
+                            setSellerId(String(p.seller.id));
+                            setPage(0);
+                          }}
                           className="mt-1 flex items-center gap-1 text-[10px] text-[#FFD000] hover:underline"
                         >
                           <Store className="size-3" /> {p.seller.nickname}
                         </button>
                       )}
-                      <p className="text-xs text-muted-foreground">{p.sold_quantity.toLocaleString("pt-BR")} vendidos</p>
+                      <p className="text-xs text-muted-foreground">
+                        {p.sold_quantity.toLocaleString("pt-BR")} vendidos
+                      </p>
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
                         <span className="font-display text-lg font-bold">{brl(p.price)}</span>
                         {p.original_price && p.original_price > p.price && (
-                          <span className="ml-2 text-xs text-muted-foreground line-through">{brl(p.original_price)}</span>
+                          <span className="ml-2 text-xs text-muted-foreground line-through">
+                            {brl(p.original_price)}
+                          </span>
                         )}
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="border-white/10 text-white hover:bg-white/10 hover:text-white"
-                          onClick={() => window.open(p.permalink, "_blank")}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-white/10 text-white hover:bg-white/10 hover:text-white"
+                          onClick={() => window.open(p.permalink, "_blank")}
+                        >
                           <ExternalLink className="size-3 mr-1" /> Ver
                         </Button>
-                        <Button size="sm" className="bg-[#FFD000] text-black hover:bg-[#FFD000]/90"
+                        <Button
+                          size="sm"
+                          className="bg-[#FFD000] text-black hover:bg-[#FFD000]/90"
                           onClick={async () => {
-                            const url = hasLink && savedLink ? savedLink.url : await generateAffiliateLink(uid, p);
-                            handleCopy(p.id, url);
-                          }}>
-                          {copiedId === p.id ? <><Check className="size-3 mr-1" /> Copiado!</> : <><Copy className="size-3 mr-1" /> Gerar Link</>}
+                            try {
+                              const url =
+                                hasLink && savedLink
+                                  ? savedLink.url
+                                  : await generateAffiliateLink(uid, p);
+                              await handleCopy(p.id, url);
+                              if (!hasLink)
+                                queryClient.invalidateQueries({ queryKey: ["links", uid] });
+                            } catch (e) {
+                              toast.error("Não foi possível gerar o link", {
+                                description: (e as Error).message,
+                              });
+                            }
+                          }}
+                        >
+                          {copiedId === p.id ? (
+                            <>
+                              <Check className="size-3 mr-1" /> Copiado!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="size-3 mr-1" /> Gerar Link
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>
@@ -601,59 +747,108 @@ function ProdutosDivulgarPage() {
             }
 
             return (
-              <div key={p.id} className="surface group overflow-hidden transition-all duration-300 hover:shadow-[var(--shadow-lift)]">
-                <div className="relative aspect-[4/3] overflow-hidden bg-muted cursor-pointer"
-                  onClick={() => window.open(p.permalink, "_blank")}>
-                  <img src={p.thumbnail.replace("-I", "-O")} alt={p.title} loading="lazy"
-                    className="size-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              <div
+                key={p.id}
+                className="surface group overflow-hidden transition-all duration-300 hover:shadow-[var(--shadow-lift)]"
+              >
+                <div
+                  className="relative aspect-[4/3] overflow-hidden bg-muted cursor-pointer"
+                  onClick={() => window.open(p.permalink, "_blank")}
+                >
+                  <img
+                    src={p.thumbnail.replace("-I", "-O")}
+                    alt={p.title}
+                    loading="lazy"
+                    className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
                   {p.shipping.free_shipping && (
                     <div className="absolute bottom-2 left-2 rounded-full bg-[#00A650] px-2 py-0.5 text-[10px] font-bold text-white flex items-center gap-1">
                       <Truck className="size-3" /> Frete grátis
                     </div>
                   )}
                   {p.condition === "new" && (
-                    <div className="absolute top-2 right-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-black">Novo</div>
+                    <div className="absolute top-2 right-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-black">
+                      Novo
+                    </div>
                   )}
                 </div>
                 <div className="p-4 space-y-2">
                   {p.seller && (
                     <button
-                      onClick={() => { setSellerId(String(p.seller.id)); setPage(0); }}
+                      onClick={() => {
+                        setSellerId(String(p.seller.id));
+                        setPage(0);
+                      }}
                       className="flex items-center gap-1 text-[10px] text-[#FFD000] hover:underline w-full truncate"
                     >
                       <Store className="size-3 shrink-0" /> {p.seller.nickname}
                     </button>
                   )}
-                  <p className="line-clamp-2 text-sm font-semibold leading-tight cursor-pointer hover:text-primary"
-                    onClick={() => window.open(p.permalink, "_blank")}>
+                  <p
+                    className="line-clamp-2 text-sm font-semibold leading-tight cursor-pointer hover:text-primary"
+                    onClick={() => window.open(p.permalink, "_blank")}
+                  >
                     {p.title}
                   </p>
                   {p.reviews_rating && p.reviews_rating > 0 && (
                     <div className="flex items-center gap-1">
                       <Star className="size-3 text-[#FFD000]" />
-                      <span className="text-xs text-muted-foreground">{p.reviews_rating}/5 ({p.reviews_total})</span>
+                      <span className="text-xs text-muted-foreground">
+                        {p.reviews_rating}/5 ({p.reviews_total})
+                      </span>
                     </div>
                   )}
                   <div className="flex items-baseline gap-2">
                     <span className="font-display text-xl font-bold">{brl(p.price)}</span>
                     {p.original_price && p.original_price > p.price && (
-                      <span className="text-xs text-muted-foreground line-through">{brl(p.original_price)}</span>
+                      <span className="text-xs text-muted-foreground line-through">
+                        {brl(p.original_price)}
+                      </span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground">{p.sold_quantity.toLocaleString("pt-BR")} vendidos</p>
+                  <p className="text-xs text-muted-foreground">
+                    {p.sold_quantity.toLocaleString("pt-BR")} vendidos
+                  </p>
                   <div className="flex gap-2 pt-1">
-                    <Button size="sm" variant="outline"
+                    <Button
+                      size="sm"
+                      variant="outline"
                       className="flex-1 border-white/10 text-white hover:bg-white/10 hover:text-white text-xs"
-                      onClick={() => window.open(p.permalink, "_blank")}>
+                      onClick={() => window.open(p.permalink, "_blank")}
+                    >
                       <ExternalLink className="size-3 mr-1" /> Ver
                     </Button>
-                    <Button size="sm"
+                    <Button
+                      size="sm"
                       className="flex-1 bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold text-xs"
                       onClick={async () => {
-                        const url = hasLink && savedLink ? savedLink.url : await generateAffiliateLink(uid, p);
-                        handleCopy(p.id, url);
-                      }}>
-                      {copiedId === p.id ? <><Check className="size-3 mr-1" /> Copiado!</> : hasLink ? <><Copy className="size-3 mr-1" /> Copiar</> : <><Zap className="size-3 mr-1" /> Link</>}
+                        try {
+                          const url =
+                            hasLink && savedLink
+                              ? savedLink.url
+                              : await generateAffiliateLink(uid, p);
+                          await handleCopy(p.id, url);
+                          if (!hasLink) queryClient.invalidateQueries({ queryKey: ["links", uid] });
+                        } catch (e) {
+                          toast.error("Não foi possível gerar o link", {
+                            description: (e as Error).message,
+                          });
+                        }
+                      }}
+                    >
+                      {copiedId === p.id ? (
+                        <>
+                          <Check className="size-3 mr-1" /> Copiado!
+                        </>
+                      ) : hasLink ? (
+                        <>
+                          <Copy className="size-3 mr-1" /> Copiar
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="size-3 mr-1" /> Link
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -666,8 +861,13 @@ function ProdutosDivulgarPage() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="mt-8 flex items-center justify-center gap-2">
-          <Button variant="outline" size="sm" className="border-white/10 text-white hover:bg-white/10 hover:text-white"
-            disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-white/10 text-white hover:bg-white/10 hover:text-white"
+            disabled={page === 0}
+            onClick={() => setPage((p) => p - 1)}
+          >
             Anterior
           </Button>
           <div className="flex items-center gap-1">
@@ -678,17 +878,27 @@ function ProdutosDivulgarPage() {
                 if (page > totalPages - 3) pageNum = totalPages - 5 + i;
               }
               return (
-                <button key={pageNum} onClick={() => setPage(pageNum)}
+                <button
+                  key={pageNum}
+                  onClick={() => setPage(pageNum)}
                   className={`size-8 rounded-lg text-sm font-medium transition-all ${
-                    page === pageNum ? "bg-primary text-primary-foreground" : "bg-accent hover:bg-accent/80"
-                  }`}>
+                    page === pageNum
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-accent hover:bg-accent/80"
+                  }`}
+                >
                   {pageNum + 1}
                 </button>
               );
             })}
           </div>
-          <Button variant="outline" size="sm" className="border-white/10 text-white hover:bg-white/10 hover:text-white"
-            disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-white/10 text-white hover:bg-white/10 hover:text-white"
+            disabled={page >= totalPages - 1}
+            onClick={() => setPage((p) => p + 1)}
+          >
             Próxima
           </Button>
         </div>
@@ -702,7 +912,12 @@ function ProdutosDivulgarPage() {
           Os links são salvos na sua conta. Para acompanhar vendas e comissões em tempo real,
           conecte sua conta do Mercado Livre na página de Integrações.
         </p>
-        <Button asChild variant="outline" size="sm" className="mt-4 border-primary/30 text-primary hover:bg-primary/10">
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="mt-4 border-primary/30 text-primary hover:bg-primary/10"
+        >
           <Link to="/integracoes">Configurar Integração</Link>
         </Button>
       </div>

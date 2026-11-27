@@ -1,7 +1,17 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ShieldAlert, Plus, CheckCircle2, XCircle, ShieldCheck, Loader2, UserCog, X, Check } from "lucide-react";
+import {
+  ShieldAlert,
+  Plus,
+  CheckCircle2,
+  XCircle,
+  ShieldCheck,
+  Loader2,
+  UserCog,
+  X,
+  Check,
+} from "lucide-react";
 import { toast } from "sonner";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { EmptyState } from "@/components/EmptyState";
@@ -9,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -31,7 +42,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { integrationsStatus } from "@/lib/config.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { shortDate } from "@/lib/format";
 import { fetchProducts, fetchTickets } from "@/lib/queries";
@@ -42,7 +55,10 @@ export const Route = createFileRoute("/_authenticated/admin")({
       { title: "Admin | Mercado Ecommerce" },
       { name: "description", content: "Painel administrativo de usuários, produtos e chamados." },
       { property: "og:title", content: "Admin | Mercado Ecommerce" },
-      { property: "og:description", content: "Painel administrativo de usuários, produtos e chamados." },
+      {
+        property: "og:description",
+        content: "Painel administrativo de usuários, produtos e chamados.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -101,9 +117,15 @@ function Admin() {
   });
 
   // ── Dialogs state ─────────────────────────────────────────────────────────
+  type TicketRow = NonNullable<typeof tickets.data>[number];
+  const [replyTicket, setReplyTicket] = React.useState<TicketRow | null>(null);
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editPlanOpen, setEditPlanOpen] = React.useState(false);
-  const [selectedUser, setSelectedUser] = React.useState<{ id: string; email: string; full_name: string | null } | null>(null);
+  const [selectedUser, setSelectedUser] = React.useState<{
+    id: string;
+    email: string | null;
+    full_name: string | null;
+  } | null>(null);
   const [selectedPlanId, setSelectedPlanId] = React.useState<string>("");
 
   // ── Create user form ─────────────────────────────────────────────────────
@@ -114,12 +136,9 @@ function Admin() {
 
   const createUser = useMutation({
     mutationFn: async () => {
-      const plan = plans.data?.find((p) => p.slug === createPlanSlug);
-      const planId = plan?.id ?? plans.data?.[0]?.id ?? null;
-
       // Create via edge function for consistent setup
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL ?? ""}/functions/v1/create-admin-user`,
+        `${import.meta.env["VITE_SUPABASE_URL"] ?? ""}/functions/v1/create-admin-user`,
         {
           method: "POST",
           headers: {
@@ -130,15 +149,13 @@ function Admin() {
             email: createEmail,
             password: createPassword,
             name: createName,
-            plan_id: planId,
             plan_slug: createPlanSlug,
           }),
         },
       );
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Erro desconhecido" }));
-        throw new Error(err.error ?? "Erro ao criar usuário");
-      }
+      const result = await res.json().catch(() => ({ error: "Resposta inválida do servidor" }));
+      if (!res.ok) throw new Error(result.error ?? "Erro ao criar usuário");
+      if (result.warning) toast.warning(result.warning);
     },
     onSuccess: () => {
       toast.success("Usuário criado com sucesso");
@@ -155,10 +172,11 @@ function Admin() {
   // ── Toggle active ────────────────────────────────────────────────────────
   const toggleActive = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
-      await supabase
+      const { error } = await supabase
         .from("profiles")
         .update({ is_active: isActive })
         .eq("id", id);
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       toast.success("Status atualizado");
@@ -170,10 +188,11 @@ function Admin() {
   // ── Validate user ────────────────────────────────────────────────────────
   const validateUser = useMutation({
     mutationFn: async (id: string) => {
-      await supabase
+      const { error } = await supabase
         .from("profiles")
         .update({ validated_at: new Date().toISOString(), is_active: true })
         .eq("id", id);
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       toast.success("Usuário validado");
@@ -185,20 +204,16 @@ function Admin() {
   // ── Set plan ──────────────────────────────────────────────────────────────
   const setPlan = useMutation({
     mutationFn: async () => {
-      if (!selectedUser || !selectedPlanId) return;
+      if (!selectedUser || !selectedPlanId) throw new Error("Selecione um plano");
       const plan = plans.data?.find((p) => p.id === selectedPlanId);
-      if (!plan) return;
+      if (!plan) throw new Error("Plano não encontrado");
 
-      const isLifetime = plan.slug === "lifetime";
-      await supabase.from("subscriptions").upsert(
-        {
-          user_id: selectedUser.id,
-          plan_id: selectedPlanId,
-          status: "active",
-          current_period_end: isLifetime ? null : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        { onConflict: "user_id" },
-      );
+      // Expiry is computed by the database (lifetime = no expiry, others = 30 days).
+      const { error } = await supabase.rpc("admin_set_plan", {
+        _target: selectedUser.id,
+        _plan_slug: plan.slug,
+      });
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       toast.success("Plano atualizado");
@@ -211,7 +226,7 @@ function Admin() {
   });
 
   // ── Open edit plan dialog ────────────────────────────────────────────────
-  const openEditPlan = (u: { id: string; email: string; full_name: string | null }) => {
+  const openEditPlan = (u: { id: string; email: string | null; full_name: string | null }) => {
     setSelectedUser(u);
     const currentSub = subs.data?.find((s) => s.user_id === u.id);
     setSelectedPlanId(currentSub?.plan_id ?? "");
@@ -236,7 +251,10 @@ function Admin() {
     { label: "Usuários", value: profiles.data?.length ?? 0 },
     { label: "Produtos no catálogo", value: products.data?.length ?? 0 },
     { label: "Chamados", value: tickets.data?.length ?? 0 },
-    { label: "Chamados abertos", value: (tickets.data ?? []).filter((t) => t.status === "aberto").length },
+    {
+      label: "Chamados abertos",
+      value: (tickets.data ?? []).filter((t) => t.status === "aberto").length,
+    },
   ];
 
   return (
@@ -244,11 +262,15 @@ function Admin() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="surface p-5">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{s.label}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {s.label}
+            </p>
             <p className="mt-3 font-display text-2xl font-semibold">{s.value}</p>
           </div>
         ))}
       </div>
+
+      <IntegrationsStatusCard />
 
       {/* ── User Management ──────────────────────────────────────────────── */}
       <div className="mt-6">
@@ -315,7 +337,9 @@ function Admin() {
                         </Button>
                       )}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{shortDate(p.created_at)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {shortDate(p.created_at)}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button
@@ -330,13 +354,19 @@ function Admin() {
                           variant="ghost"
                           size="sm"
                           className={`h-8 gap-1 ${p.is_active !== false ? "text-amber-500 hover:text-amber-400" : "text-success hover:text-success"}`}
-                          onClick={() => toggleActive.mutate({ id: p.id, isActive: p.is_active === false })}
+                          onClick={() =>
+                            toggleActive.mutate({ id: p.id, isActive: p.is_active === false })
+                          }
                           disabled={toggleActive.isPending}
                         >
                           {p.is_active !== false ? (
-                            <><XCircle className="size-3" /> Desativar</>
+                            <>
+                              <XCircle className="size-3" /> Desativar
+                            </>
                           ) : (
-                            <><CheckCircle2 className="size-3" /> Ativar</>
+                            <>
+                              <CheckCircle2 className="size-3" /> Ativar
+                            </>
                           )}
                         </Button>
                       </div>
@@ -366,6 +396,7 @@ function Admin() {
                 <TableHead>Assunto</TableHead>
                 <TableHead>Prioridade</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -376,11 +407,21 @@ function Admin() {
                   <TableCell>
                     <Badge variant="secondary">{t.status}</Badge>
                   </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8"
+                      onClick={() => setReplyTicket(t)}
+                    >
+                      Responder
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
               {tickets.data?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-8 text-sm text-muted-foreground">
+                  <TableCell colSpan={4} className="text-center py-8 text-sm text-muted-foreground">
                     Nenhum chamado
                   </TableCell>
                 </TableRow>
@@ -403,7 +444,9 @@ function Admin() {
               {(plans.data ?? []).map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.name}</TableCell>
-                  <TableCell><Badge variant="outline">{p.slug}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{p.slug}</Badge>
+                  </TableCell>
                   <TableCell>{(p.price_cents / 100).toFixed(2)}</TableCell>
                 </TableRow>
               ))}
@@ -447,8 +490,8 @@ function Admin() {
                 type="password"
                 value={createPassword}
                 onChange={(e) => setCreatePassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
-                minLength={6}
+                placeholder="Mínimo 8 caracteres"
+                minLength={8}
               />
             </div>
             <div className="space-y-2">
@@ -468,7 +511,9 @@ function Admin() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancelar
+            </Button>
             <Button
               onClick={() => createUser.mutate()}
               disabled={!createEmail || !createPassword || createUser.isPending}
@@ -484,7 +529,9 @@ function Admin() {
       <Dialog open={editPlanOpen} onOpenChange={setEditPlanOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Alterar plano de {selectedUser?.full_name ?? selectedUser?.email}</DialogTitle>
+            <DialogTitle>
+              Alterar plano de {selectedUser?.full_name ?? selectedUser?.email}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
@@ -496,7 +543,8 @@ function Admin() {
                 <SelectContent>
                   {(plans.data ?? []).map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.name} {p.slug === "lifetime" ? "(Vitalício)" : ""} — R$ {(p.price_cents / 100).toFixed(2)}
+                      {p.name} {p.slug === "lifetime" ? "(Vitalício)" : ""} — R${" "}
+                      {(p.price_cents / 100).toFixed(2)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -504,7 +552,9 @@ function Admin() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditPlanOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setEditPlanOpen(false)}>
+              Cancelar
+            </Button>
             <Button
               onClick={() => setPlan.mutate()}
               disabled={!selectedPlanId || setPlan.isPending}
@@ -515,6 +565,167 @@ function Admin() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <TicketReplyDialog ticket={replyTicket} onClose={() => setReplyTicket(null)} />
     </AppLayout>
+  );
+}
+
+// ── Integration configuration status (admin only, no secret values) ─────────
+function IntegrationsStatusCard() {
+  const getStatus = useServerFn(integrationsStatus);
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ["admin-integrations-status"],
+    queryFn: () => getStatus(),
+    staleTime: 60_000,
+  });
+
+  return (
+    <div className="mt-6 surface p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-lg font-semibold">Integrações</h2>
+        <Button variant="ghost" size="sm" onClick={() => void refetch()}>
+          Atualizar
+        </Button>
+      </div>
+      {isLoading ? (
+        <p className="mt-3 text-sm text-muted-foreground">Verificando configuração…</p>
+      ) : isError || !data ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Não foi possível verificar as integrações.
+        </p>
+      ) : (
+        <ul className="mt-4 divide-y divide-border">
+          {data.map((i) => (
+            <li
+              key={i.key}
+              className="flex flex-col gap-1 py-3 sm:flex-row sm:items-start sm:gap-4"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">{i.name}</p>
+                <p className="text-xs text-muted-foreground">{i.note}</p>
+                {i.missing.length > 0 && (
+                  <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
+                    Faltando: {i.missing.join(", ")}
+                  </p>
+                )}
+              </div>
+              <Badge
+                variant="secondary"
+                className={
+                  i.implemented && i.configured
+                    ? "bg-success/10 text-success border-success/20"
+                    : "bg-muted text-muted-foreground"
+                }
+              >
+                {!i.implemented
+                  ? "Não implementada"
+                  : i.configured
+                    ? "Configurada"
+                    : "Integração ainda não configurada"}
+              </Badge>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ── Ticket reply (admin) ────────────────────────────────────────────────────
+const TICKET_STATUSES = [
+  { value: "aberto", label: "Aberto" },
+  { value: "em_andamento", label: "Em andamento" },
+  { value: "resolvido", label: "Resolvido" },
+];
+
+function TicketReplyDialog({
+  ticket,
+  onClose,
+}: {
+  ticket: {
+    id: string;
+    subject: string;
+    message: string;
+    status: string;
+    admin_response: string | null;
+  } | null;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [response, setResponse] = React.useState("");
+  const [status, setStatus] = React.useState("em_andamento");
+
+  React.useEffect(() => {
+    if (!ticket) return;
+    setResponse(ticket.admin_response ?? "");
+    setStatus(ticket.status === "aberto" ? "em_andamento" : ticket.status);
+  }, [ticket]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!ticket) return;
+      const text = response.trim();
+      if (!text) throw new Error("Escreva uma resposta");
+      if (text.length > 5000) throw new Error("Resposta muito longa (máx. 5000 caracteres)");
+      const { error } = await supabase
+        .from("support_tickets")
+        .update({ admin_response: text, status })
+        .eq("id", ticket.id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-tickets"] });
+      toast.success("Resposta enviada");
+      onClose();
+    },
+    onError: (e: Error) => toast.error("Não foi possível responder", { description: e.message }),
+  });
+
+  return (
+    <Dialog open={!!ticket} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{ticket?.subject}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <p className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-sm">
+            {ticket?.message}
+          </p>
+          <div className="space-y-2">
+            <Label htmlFor="ticket-response">Resposta</Label>
+            <Textarea
+              id="ticket-response"
+              rows={5}
+              maxLength={5000}
+              value={response}
+              onChange={(e) => setResponse(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ticket-status">Status</Label>
+            <select
+              id="ticket-status"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              {TICKET_STATUSES.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={() => save.mutate()} disabled={save.isPending}>
+            {save.isPending ? "Enviando..." : "Enviar resposta"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

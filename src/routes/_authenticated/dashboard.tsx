@@ -44,7 +44,10 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
       { title: "Dashboard | Mercado Ecommerce" },
       { name: "description", content: "Acompanhe produtos, links, cliques, pedidos e comissões." },
       { property: "og:title", content: "Dashboard | Mercado Ecommerce" },
-      { property: "og:description", content: "Acompanhe produtos, links, cliques, pedidos e comissões." },
+      {
+        property: "og:description",
+        content: "Acompanhe produtos, links, cliques, pedidos e comissões.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -68,14 +71,18 @@ function StatCard({
   isHighlight?: boolean | undefined;
 }) {
   return (
-    <div className={`surface group relative overflow-hidden p-5 transition-all duration-300 hover:shadow-[var(--shadow-lift)] ${isHighlight ? 'border-primary/30' : ''}`}>
+    <div
+      className={`surface group relative overflow-hidden p-5 transition-all duration-300 hover:shadow-[var(--shadow-lift)] ${isHighlight ? "border-primary/30" : ""}`}
+    >
       {isHighlight && (
         <div className="absolute -right-4 -top-4 size-24 rounded-full bg-primary/10 blur-2xl" />
       )}
       <div className="relative flex items-center justify-between">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-        <div className={`grid size-10 place-items-center rounded-xl transition-transform duration-300 group-hover:scale-110 ${isHighlight ? 'bg-primary text-primary-foreground' : 'bg-accent'}`}>
-          <Icon className={`size-5 ${isHighlight ? '' : ''}`} />
+        <div
+          className={`grid size-10 place-items-center rounded-xl transition-transform duration-300 group-hover:scale-110 ${isHighlight ? "bg-primary text-primary-foreground" : "bg-accent"}`}
+        >
+          <Icon className={`size-5 ${isHighlight ? "" : ""}`} />
         </div>
       </div>
       <div className="relative mt-4">
@@ -95,11 +102,31 @@ function Dashboard() {
   const { user, profile } = useAuth();
   const uid = user?.id ?? "";
 
-  const myProducts = useQuery({ queryKey: ["my-products", uid], queryFn: () => fetchMyProducts(uid), enabled: !!uid });
-  const links = useQuery({ queryKey: ["links", uid], queryFn: () => fetchMyLinks(uid), enabled: !!uid });
-  const orders = useQuery({ queryKey: ["orders", uid], queryFn: () => fetchOrders(uid), enabled: !!uid });
-  const commissions = useQuery({ queryKey: ["commissions", uid], queryFn: () => fetchCommissions(uid), enabled: !!uid });
-  const integration = useQuery({ queryKey: ["integration", uid], queryFn: () => fetchIntegration(uid), enabled: !!uid });
+  const myProducts = useQuery({
+    queryKey: ["my-products", uid],
+    queryFn: () => fetchMyProducts(uid),
+    enabled: !!uid,
+  });
+  const links = useQuery({
+    queryKey: ["links", uid],
+    queryFn: () => fetchMyLinks(uid),
+    enabled: !!uid,
+  });
+  const orders = useQuery({
+    queryKey: ["orders", uid],
+    queryFn: () => fetchOrders(uid),
+    enabled: !!uid,
+  });
+  const commissions = useQuery({
+    queryKey: ["commissions", uid],
+    queryFn: () => fetchCommissions(uid),
+    enabled: !!uid,
+  });
+  const integration = useQuery({
+    queryKey: ["integration", uid],
+    queryFn: () => fetchIntegration(uid),
+    enabled: !!uid,
+  });
   const featured = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
 
   const clicks = (links.data ?? []).reduce((acc, l) => acc + (l.clicks ?? 0), 0);
@@ -110,19 +137,23 @@ function Dashboard() {
   const clicksByProduct = (links.data ?? [])
     .map((l) => ({
       name:
-        (myProducts.data ?? []).find((p) => p.product_id === l.product_id)?.products?.title?.slice(0, 18) ??
-        "Produto",
+        (myProducts.data ?? [])
+          .find((p) => p.product_id === l.product_id)
+          ?.products?.title?.slice(0, 18) ?? "Produto",
       cliques: l.clicks ?? 0,
     }))
     .slice(0, 6);
 
   const ordersByMonth = Object.values(
-    (orders.data ?? []).reduce<Record<string, { mes: string; pedidos: number; comissao: number }>>((acc, o) => {
-      const key = new Date(o.ordered_at).toLocaleDateString("pt-BR", { month: "short" });
-      acc[key] = acc[key] ?? { mes: key, pedidos: 0, comissao: 0 };
-      acc[key].pedidos += 1;
-      return acc;
-    }, {}),
+    (orders.data ?? []).reduce<Record<string, { mes: string; pedidos: number; comissao: number }>>(
+      (acc, o) => {
+        const key = new Date(o.ordered_at).toLocaleDateString("pt-BR", { month: "short" });
+        acc[key] = acc[key] ?? { mes: key, pedidos: 0, comissao: 0 };
+        acc[key].pedidos += 1;
+        return acc;
+      },
+      {},
+    ),
   );
 
   return (
@@ -130,7 +161,11 @@ function Dashboard() {
       title={`${greeting()}, ${firstName(profile?.full_name, user?.email)}`}
       description="Encontre produtos, prepare suas divulgações e acompanhe seus resultados."
       actions={
-        <Button asChild size="sm" className="hidden sm:inline-flex bg-primary text-primary-foreground hover:bg-primary/90">
+        <Button
+          asChild
+          size="sm"
+          className="hidden sm:inline-flex bg-primary text-primary-foreground hover:bg-primary/90"
+        >
           <Link to="/catalogo">
             <Store className="size-4 mr-2" /> Explorar catálogo
           </Link>
@@ -147,12 +182,16 @@ function Dashboard() {
             <div>
               <p className="text-sm font-semibold">Integração não configurada</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Conecte sua conta do Mercado Livre pelo fluxo oficial para receber pedidos e comissões reais.
-                Até lá, vendas e comissões ficam zeradas — nada é simulado.
+                Conecte sua conta do Mercado Livre pelo fluxo oficial para receber pedidos e
+                comissões reais. Até lá, vendas e comissões ficam zeradas — nada é simulado.
               </p>
             </div>
           </div>
-          <Button asChild size="sm" className="shrink-0 bg-primary text-primary-foreground hover:bg-primary/90">
+          <Button
+            asChild
+            size="sm"
+            className="shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
+          >
             <Link to="/integracoes">Configurar</Link>
           </Button>
         </div>
@@ -168,7 +207,8 @@ function Dashboard() {
               <Store className="size-4" /> Mercado Livre conectado
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Conta: {integration.data?.account_identifier} • Suas vendas e comissões aparecem em tempo real
+              Conta: {integration.data?.account_identifier} • Suas vendas e comissões aparecem em
+              tempo real
             </p>
           </div>
         </div>
@@ -176,9 +216,19 @@ function Dashboard() {
 
       {/* Premium Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-        <StatCard icon={Package} label="Produtos" value={String(myProducts.data?.length ?? 0)} isHighlight />
+        <StatCard
+          icon={Package}
+          label="Produtos"
+          value={String(myProducts.data?.length ?? 0)}
+          isHighlight
+        />
         <StatCard icon={Link2} label="Links" value={String(links.data?.length ?? 0)} />
-        <StatCard icon={MousePointerClick} label="Cliques" value={clicks.toLocaleString("pt-BR")} isHighlight />
+        <StatCard
+          icon={MousePointerClick}
+          label="Cliques"
+          value={clicks.toLocaleString("pt-BR")}
+          isHighlight
+        />
         <StatCard
           icon={DollarSign}
           label="Vendas"
@@ -200,7 +250,9 @@ function Dashboard() {
         <div className="surface overflow-hidden p-5">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold">Cliques por produto</h2>
-            <Badge variant="secondary" className="bg-primary/10 text-primary">{clicks} cliques</Badge>
+            <Badge variant="secondary" className="bg-primary/10 text-primary">
+              {clicks} cliques
+            </Badge>
           </div>
           {clicksByProduct.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-14 text-center">
@@ -219,11 +271,11 @@ function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      background: 'var(--card)', 
-                      border: '1px solid var(--border)', 
-                      borderRadius: 'var(--radius-lg)' 
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--card)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "var(--radius-lg)",
                     }}
                   />
                   <Bar dataKey="cliques" fill="var(--primary)" radius={[6, 6, 0, 0]} />
@@ -236,7 +288,9 @@ function Dashboard() {
         <div className="surface overflow-hidden p-5">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold">Pedidos ao longo do tempo</h2>
-            <Badge variant="secondary" className="bg-success/10 text-success">{orders.data?.length ?? 0} pedidos</Badge>
+            <Badge variant="secondary" className="bg-success/10 text-success">
+              {orders.data?.length ?? 0} pedidos
+            </Badge>
           </div>
           {ordersByMonth.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-14 text-center">
@@ -255,24 +309,24 @@ function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                   <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      background: 'var(--card)', 
-                      border: '1px solid var(--border)', 
-                      borderRadius: 'var(--radius-lg)' 
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--card)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "var(--radius-lg)",
                     }}
                   />
                   <defs>
                     <linearGradient id="colorPedidos" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <Area 
-                    type="monotone" 
-                    dataKey="pedidos" 
-                    stroke="var(--primary)" 
-                    fill="url(#colorPedidos)" 
+                  <Area
+                    type="monotone"
+                    dataKey="pedidos"
+                    stroke="var(--primary)"
+                    fill="url(#colorPedidos)"
                     strokeWidth={2}
                   />
                 </AreaChart>
@@ -291,18 +345,25 @@ function Dashboard() {
           </Button>
         </div>
         {(featured.data ?? []).length === 0 ? (
-          <EmptyState icon={Store} title="Catálogo vazio" description="Nenhum produto disponível no momento." />
+          <EmptyState
+            icon={Store}
+            title="Catálogo vazio"
+            description="Nenhum produto disponível no momento."
+          />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {(featured.data ?? []).slice(0, 4).map((p) => (
-              <div key={p.id} className="surface group overflow-hidden transition-all duration-300 hover:shadow-[var(--shadow-lift)]">
+              <div
+                key={p.id}
+                className="surface group overflow-hidden transition-all duration-300 hover:shadow-[var(--shadow-lift)]"
+              >
                 {p.image_url && (
                   <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                    <img 
-                      src={p.image_url} 
-                      alt={p.title} 
-                      loading="lazy" 
-                      className="size-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                    <img
+                      src={p.image_url}
+                      alt={p.title}
+                      loading="lazy"
+                      className="size-full object-cover transition-transform duration-500 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                   </div>
