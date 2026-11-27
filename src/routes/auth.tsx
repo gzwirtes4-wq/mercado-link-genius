@@ -14,7 +14,7 @@ import { ArrowRight, Check, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { step?: string; mode?: string } => ({
     step: typeof search['step'] === "string" ? (search['step'] as string) : undefined,
     mode: typeof search['mode'] === "string" ? (search['mode'] as string) : undefined,
   }),

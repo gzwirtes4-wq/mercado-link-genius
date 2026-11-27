@@ -130,7 +130,7 @@ function Landing() {
                   <Link to="/auth">Entrar</Link>
                 </Button>
                 <Button asChild size="sm" className="bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-semibold">
-                  <Link to="#planos">Começar agora</Link>
+                  <a href="#planos">Começar agora</a>
                 </Button>
               </>
             )}
@@ -159,9 +159,9 @@ function Landing() {
 
           <div className="mt-10 flex flex-wrap justify-center gap-4">
             <Button asChild size="lg" className="bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-bold text-base px-8 py-6 rounded-xl shadow-[0_0_30px_rgba(255,208,0,0.3)]">
-              <Link to="#planos">
+              <a href="#planos">
                 COMEÇAR AGORA <ArrowRight className="size-5 ml-2" />
-              </Link>
+              </a>
             </Button>
             <Button asChild size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10 hover:text-white font-semibold text-base px-8 py-6 rounded-xl">
               <a href="#como-funciona">VER COMO FUNCIONA</a>
@@ -313,7 +313,7 @@ function Landing() {
             Construa sua operação de divulgação com estrutura profissional.
           </p>
           <Button asChild size="lg" className="mt-8 bg-[#FFD000] text-black hover:bg-[#FFD000]/90 font-bold text-base px-10 py-6 rounded-xl shadow-[0_0_30px_rgba(255,208,0,0.3)]">
-            <Link to="#planos">COMEÇAR AGORA <ArrowRight className="size-5 ml-2" /></Link>
+            <a href="#planos">COMEÇAR AGORA <ArrowRight className="size-5 ml-2" /></a>
           </Button>
         </div>
       </section>

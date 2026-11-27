@@ -103,7 +103,7 @@ function Admin() {
   // ── Dialogs state ─────────────────────────────────────────────────────────
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editPlanOpen, setEditPlanOpen] = React.useState(false);
-  const [selectedUser, setSelectedUser] = React.useState<{ id: string; email: string; full_name: string | null } | null>(null);
+  const [selectedUser, setSelectedUser] = React.useState<{ id: string; email: string | null; full_name: string | null } | null>(null);
   const [selectedPlanId, setSelectedPlanId] = React.useState<string>("");
 
   // ── Create user form ─────────────────────────────────────────────────────
@@ -116,7 +116,7 @@ function Admin() {
     mutationFn: async () => {
       // Create via edge function for consistent setup
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL ?? ""}/functions/v1/create-admin-user`,
+        `${import.meta.env["VITE_SUPABASE_URL"] ?? ""}/functions/v1/create-admin-user`,
         {
           method: "POST",
           headers: {
@@ -204,7 +204,7 @@ function Admin() {
   });
 
   // ── Open edit plan dialog ────────────────────────────────────────────────
-  const openEditPlan = (u: { id: string; email: string; full_name: string | null }) => {
+  const openEditPlan = (u: { id: string; email: string | null; full_name: string | null }) => {
     setSelectedUser(u);
     const currentSub = subs.data?.find((s) => s.user_id === u.id);
     setSelectedPlanId(currentSub?.plan_id ?? "");
