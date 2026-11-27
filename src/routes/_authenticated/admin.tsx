@@ -41,7 +41,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { integrationsStatus } from "@/lib/config.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { shortDate } from "@/lib/format";
 import { fetchProducts, fetchTickets } from "@/lib/queries";
@@ -264,6 +266,8 @@ function Admin() {
           </div>
         ))}
       </div>
+
+      <IntegrationsStatusCard />
 
       {/* ── User Management ──────────────────────────────────────────────── */}
       <div className="mt-6">
@@ -548,5 +552,66 @@ function Admin() {
         </DialogContent>
       </Dialog>
     </AppLayout>
+  );
+}
+
+// ── Integration configuration status (admin only, no secret values) ─────────
+function IntegrationsStatusCard() {
+  const getStatus = useServerFn(integrationsStatus);
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ["admin-integrations-status"],
+    queryFn: () => getStatus(),
+    staleTime: 60_000,
+  });
+
+  return (
+    <div className="mt-6 surface p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-lg font-semibold">Integrações</h2>
+        <Button variant="ghost" size="sm" onClick={() => void refetch()}>
+          Atualizar
+        </Button>
+      </div>
+      {isLoading ? (
+        <p className="mt-3 text-sm text-muted-foreground">Verificando configuração…</p>
+      ) : isError || !data ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Não foi possível verificar as integrações.
+        </p>
+      ) : (
+        <ul className="mt-4 divide-y divide-border">
+          {data.map((i) => (
+            <li
+              key={i.key}
+              className="flex flex-col gap-1 py-3 sm:flex-row sm:items-start sm:gap-4"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">{i.name}</p>
+                <p className="text-xs text-muted-foreground">{i.note}</p>
+                {i.missing.length > 0 && (
+                  <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
+                    Faltando: {i.missing.join(", ")}
+                  </p>
+                )}
+              </div>
+              <Badge
+                variant="secondary"
+                className={
+                  i.implemented && i.configured
+                    ? "bg-success/10 text-success border-success/20"
+                    : "bg-muted text-muted-foreground"
+                }
+              >
+                {!i.implemented
+                  ? "Não implementada"
+                  : i.configured
+                    ? "Configurada"
+                    : "Integração ainda não configurada"}
+              </Badge>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

@@ -27,3 +27,15 @@ t "admin atribui plano a usuário" $B "INSERT INTO public.subscriptions(user_id,
 t "admin desativa usuário" $B "WITH u AS (UPDATE public.profiles SET is_active=false WHERE id='$A' RETURNING 1) SELECT count(*) AS n FROM u" ok
 t "admin responde chamado" $B "WITH u AS (UPDATE public.support_tickets SET admin_response='ok' WHERE user_id='$A' RETURNING 1) SELECT count(*) AS n FROM u" ok
 echo "audit_log entries: $($P -c "SELECT count(*) FROM public.admin_audit_log WHERE table_name='subscriptions'" 2>&1)"
+
+# ── Fornecedores, catálogo compartilhado e limites (migration 20261127140000) ──
+$P <<SQL >/dev/null 2>&1
+INSERT INTO public.suppliers(slug,name,origin,active) VALUES ('teste-ativo','Ativo','internacional',true),('teste-inativo','Inativo','nacional',false) ON CONFLICT DO NOTHING;
+INSERT INTO public.supplier_products(supplier_id,external_id,title) SELECT id,'P1','Produto '||slug FROM public.suppliers WHERE slug LIKE 'teste-%' ON CONFLICT DO NOTHING;
+SQL
+t "usuário lê catálogo de fornecedor ativo" $A "SELECT CASE WHEN count(*)=0 THEN 0 ELSE 1 END FROM public.supplier_products p JOIN public.suppliers s ON s.id=p.supplier_id WHERE s.slug='teste-ativo'" ok
+t "usuário NÃO vê fornecedor inativo" $A "SELECT count(*) AS n FROM public.supplier_products p JOIN public.suppliers s ON s.id=p.supplier_id WHERE s.slug='teste-inativo'" deny
+t "usuário grava no catálogo compartilhado" $A "INSERT INTO public.supplier_products(supplier_id,external_id,title) SELECT id,'X','x' FROM public.suppliers LIMIT 1" deny
+t "usuário consome cota direto (burlar limite)" $A "SELECT public.consume_quota('$A','publish','k1')" deny
+t "usuário forja evento de uso" $A "INSERT INTO public.usage_events(user_id,metric,idempotency_key) VALUES ('$A','publish','x')" deny
+t "usuário lê log de uso de APIs" $A "SELECT count(*) AS n FROM public.api_usage_log" deny
