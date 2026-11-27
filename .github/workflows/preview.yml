@@ -44,6 +44,12 @@ jobs:
         run: |
           cp tests/ui/screenshots.mjs /tmp/pw/
           cd /tmp/pw && OUT_DIR="$GITHUB_WORKSPACE/screenshots" node screenshots.mjs
+      - name: Prints também no log (base64), para ferramentas sem acesso a artifacts
+        if: always()
+        run: |
+          echo "=====PRINTS-BEGIN====="
+          tar czf - -C screenshots . | base64 -w 76
+          echo "=====PRINTS-END====="
       - uses: actions/upload-artifact@v4
         if: always()
         with:

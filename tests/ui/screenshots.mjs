@@ -38,7 +38,12 @@ for (const [vpName, vp] of viewports) {
       const overflowX = await page.evaluate(
         () => document.documentElement.scrollWidth > window.innerWidth + 1,
       );
-      await page.screenshot({ path: `${OUT}/${vpName}-${name}.png`, fullPage: true });
+      await page.screenshot({
+        path: `${OUT}/${vpName}-${name}.jpg`,
+        fullPage: true,
+        type: "jpeg",
+        quality: 70,
+      });
       report.push({
         viewport: vpName,
         page: path,
